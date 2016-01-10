@@ -1,0 +1,658 @@
+---
+title: "Recommended Print List"
+author: "Ken Brooks"
+date: "November 13, 2015"
+output: pdf_document
+---
+
+Prepare Environment
+-------------------
+
+```{r libraries, warning=FALSE, echo=FALSE, error=FALSE}
+# clear environment and load libraries
+rm(list = ls())
+
+# note: use install_packages.Rmd for installation
+library(xts)
+library(readxl)
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(lubridate)
+library(forecast)
+
+
+```
+
+Import data
+-----------
+
+```{r read, echo=FALSE}
+setwd("~/Documents/Macmillan/Projects/Demand Planning")
+
+# filename <- file.choose()
+
+# filename <- "Sales by month.csv"
+filename <- "Sales by month v3.csv"
+
+# data = read_csv(filename, sheet = 1, skip = 0)
+data = read.csv(filename)
+```
+
+Check that nothing has changed in the input data
+------------------------------------------------
+
+```{r checkdata}
+
+# str(data)
+dim(data)[2] == 16
+is.factor(data$Author)
+is.factor(data$Isbn)
+is.numeric(data$Ean)
+is.factor(data$Title)
+is.factor(data$Pub.Date)
+is.factor(data$Medium)
+is.factor(data$Ans.Code)
+is.integer(data$Available)
+is.integer(data$Consignment.On.Hand)
+is.integer(data$Reserved.Stock)
+is.integer(data$Sets.Made.Up)
+is.integer(data$Month)
+is.integer(data$Gross.Units)
+is.integer(data$Return.Units)
+is.factor(data$Prev.Edition.Isbn)
+is.numeric(data$Prev.Edition.Ean)
+
+```
+
+Clean up imported data
+----------------------
+
+```{r format.data}
+
+names(data)
+
+
+valid_column_names <- make.names(names=names(data), unique=TRUE, allow_ = TRUE)
+names(data) <- valid_column_names
+
+data$Title <- gsub("..", ".", make.names(data$Title, allow_ = TRUE), fixed = TRUE)
+data$Author <- gsub("..", ".", make.names(data$Author, allow = TRUE), fixed = TRUE)
+data$Ean <- as.factor(as.character(data$Ean))
+data$Prev.Edition.Ean <- as.factor(as.character(data$Prev.Edition.Ean))
+data$Pub.Date <- as.Date(as.character(data$Pub.Date), format = "%m/%d/%Y")
+# data$Month <- as.Date(as.character(data$Month), format = "%Y%m")
+
+data$Month = as.Date(paste(as.character(data$Month), "01", sep = ""), format = "%Y%m%d")
+
+# Eliminate duplicates, if any:
+data <- unique(data)  # Note that this might cause problems later!
+
+str(data)
+summary(data)
+
+saveRDS(data, "data.rds")
+
+```
+
+Build title table
+-----------------
+
+```{r title.table}
+
+# Retrieve stored data
+data = readRDS("data.rds")
+
+names(data)
+
+title.data = data %>% dplyr::select(Author, Isbn, Ean, Title, Pub.Date, Medium, Ans.Code, Available, Consignment.On.Hand, Reserved.Stock, Sets.Made.Up, Prev.Edition.Isbn, Prev.Edition.Ean) %>%
+  distinct(Author, Isbn, Ean, Title, Pub.Date, Medium, Ans.Code, Available,
+    Consignment.On.Hand, Reserved.Stock, Sets.Made.Up, Prev.Edition.Isbn, Prev.Edition.Ean)
+
+saveRDS(title.data, "title_data.rds")
+
+```
+
+Build time series objects
+-------------------------
+
+```{r time.series, warning=FALSE, error=FALSE}
+# The purpose of this chunk is to create time series objects for a large number of titles
+
+# Retrieve stored data
+data = readRDS("data.rds")
+
+names(data)
+
+demand = data %>% dplyr::select(Month, Isbn, Gross.Units) 
+
+demand = tidyr::spread(demand, key = Isbn, value = Gross.Units)
+
+# Get the earliest month in order to align dates
+
+earliest.date = min(demand$Month)
+
+rownames(demand) <- demand$Month
+demand3 = demand[,-1] # Remove the Month column since it's now rownames
+
+# Get the earliest month
+
+demand4 = ts(demand3, start = c(year(earliest.date), month(earliest.date)), frequency = 12)
+
+saveRDS(demand4, "time_series.rds")
+
+```
+
+Find previous ISBN
+------------------
+
+```{r prev.isbn}
+
+title.data = readRDS("title_data.rds")
+
+# head(title.data, 50)
+
+isbn1 <- "1429231246"
+isbn2 <- "0312132921"
+
+previous.edition.isbn <- function(isbn, title.df){
+  # Returns the previous edition ISBN.  Takes ISBN as a string, and a data frame
+  # as an input and returns the previous ISBN as a string, or NA if no previous
+  # ISBN is available.
+  result <- as.character(title.df[title.df$Isbn == isbn, "Prev.Edition.Isbn"])
+  if (result == "")
+    {NA}
+  else {result}
+}
+
+
+# Tests for previous.edition.isbn
+previous.edition.isbn("1429231246", title.data) == "0716761211"
+is.na(previous.edition.isbn("0312132921", title.data))
+
+```
+
+Create a combined title with previous edition data
+--------------------------------------------------
+
+```{r sum.edition.data}
+
+sum.edition.data <- function(isbn, ts.data, title.data){
+  # Takes an ISBN as a string and two data frames: title data and title
+  # time series as inputs and returns a new time series with the summed
+  # values from that ISBN and its previous edition. If there is no previous edition, 
+  # it returns the data from the first edition only
+  
+  # Get ISBN data
+  title.1 <- ts.data[,isbn]
+  
+  # Find previous edition
+  isbn.prev <- previous.edition.isbn(isbn, title.data) # Get previous edition
+  
+  # If there's no previous edition return the first title's data
+
+  if (is.na(isbn.prev)) {
+    return(title.1)
+    }
+  # Fail if previous edition has no data (not yet implemented)
+  
+  # Get previous edition data
+  title.2 <- ts.data[,isbn.prev]
+  
+  # Combine the two titles
+  title.1 <- zoo::na.trim(title.1, sides = "both", is.na = "all") # trim NAs
+  title.2 <- zoo::na.trim(title.2, sides = "both", is.na = "all") # trim NAs
+  
+  temp = merge.zoo(title.1, title.2)
+  temp[is.na(temp)] <- 0
+  title.3 = temp[,1] + temp[,2]
+  title.3 = ts(title.3, start = start(title.3), frequency = 12)
+  title.3[title.3 < 0] <- 0
+  
+  title.3
+}
+
+time.series = readRDS("time_series.rds")
+title.data = readRDS("title_data.rds")
+
+isbn1 = "1319056911"  # How Life Works
+isbn2 = "0312132921"
+isbn3 <- "031243829X"
+
+# Test sum.edition.data
+sum.edition.data(isbn1, time.series, title.data)
+
+# Should match isbn3 data
+isbn3 <- "031243829X"
+print(time.series[,isbn3])
+print(sum.edition.data(isbn3, time.series, title.data))
+```
+
+Forecast time series
+--------------------
+
+```{r forecast, warning=FALSE, error=FALSE}
+# The purpose of this chunk is to generate forecasts for many titles at once
+
+# Get all of the time series and title data
+time.series = readRDS("time_series.rds")
+title.data = readRDS("title_data.rds")
+
+# create a function to forecast a series based on a ts and df index
+
+n.mo.fcst2 <- function(isbn){  # note that this should be a 2 param fn
+  ts1 = time.series[, isbn]
+  # if there's more than 24 months of data, generate forecast,
+  # else generate a zero forecast to drive a manual review.
+  # This needs to generate the forecast to see if it's flat.
+  # If it's flat, replace it with a zero forecast to drive
+  # a manual review.
+  if(sum(!is.na(ts1)) < 25){  
+    ts1.temp = ts(rep(0,length(ts1)), start = start(ts1), frequency = frequency(ts1))
+    ts1.fcst = forecast(ts1.temp, h=15)$mean
+    }
+  else{
+    ts1.fcst = forecast(ts1, h=15)$mean}
+  ts1.fcst
+}
+
+# use ldply to apply it to a list of ISBNs
+
+title.forecasts <- ldply(title.data$Isbn, n.mo.fcst2)
+# add names
+title.data$Isbn
+rownames(title.forecasts) <- as.character(title.data$Isbn)
+
+rownames(title.forecasts[1,])
+
+# Add cumulative forecast quantities. Note that titles are in rows!
+
+title.forecasts <- title.forecasts %>% mutate(three = rowSums(.[1:3])) %>%
+  mutate(six = rowSums(.[1:6])) %>%
+  mutate(nine = rowSums(.[1:9])) %>%
+  mutate(twelve = rowSums(.[1:12])) %>%
+  mutate(fifteen = rowSums(.[1:15]))
+
+saveRDS(title.forecasts, "forecasts.rds")
+write.csv(file="Title_forecasts.csv", x=title.forecasts)
+
+```
+
+Align previous edition with current and plot
+--------------------------------------------
+
+```{r align.previous.edition}
+# Make current edition and previous edition start with the same year.
+
+time.series = readRDS("time_series.rds")
+title.data = readRDS("title_data.rds")
+
+isbn1 = "1319056911"  # How Life Works
+isbn2 = "0312132921"
+isbn3 <- "031243829X"
+
+align.previous.edition <- function(isbn, ts.data, title.data){
+  # Takes an ISBN as a string and two data frames: title data and title
+  # time series as inputs and plots the time series and the previous
+  # edition aligned at peak sales.  If there is no previous edition, 
+  # it returns an NA.
+  
+  isbn.prev <- previous.edition.isbn(isbn, title.data) # Get previous edition
+  
+  # Fail if there's no previous edition (isbn.prev == NA)
+  if (is.na(isbn.prev)) {
+    return(NA)
+    }
+  # Fail if previous edition has no data (not yet implemented)
+  
+  # Find the peak sales month for each title
+  title.1 <- ts.data[,isbn]
+  title.1.max <- which.max(title.1)
+  
+  title.2 <- ts.data[,isbn.prev]
+  title.2.max <- which.max(title.2)
+
+  # Determine how much to shift the previous edition to match peaks. 
+  # Shift should be in 12 month increments
+  
+  shift = title.1.max - title.2.max   #shifting by this amount would align peaks
+  
+  shift = 12 * round(shift / 12.0)   # Makes shifts in 12 month increments
+  
+  #make room in the title to allow for the shift
+  title.3 <- window(title.2, 
+                    start= start(title.2),
+                    end = end(title.2) + shift,
+                    extend = TRUE)
+  
+  title.3 <- lag(title.3, shift)  # do the shift
+  
+  # Trim leading and trailing NAs and plot
+  plot.data <- cbind(title.1, title.3)
+  plot.data <- zoo::na.trim(plot.data, sides = "both", is.na = "all")
+  plot(plot.data, main = "Plot versus previous edition",
+       xlab = "Date",
+       ylab = "Units",
+       plot.type = "s", 
+       col = 1:2)
+  legend("topright", 
+         legend = c(isbn1, "previous"),
+         lty = c(1,1),
+         col = 1:2)
+  
+  return(title.3)
+}
+
+# Test plot.previous.edition
+align.previous.edition(isbn1, time.series, title.data)
+# align.previous.edition(isbn2, time.series, title.data)
+
+isbn3 <- "031243829X"
+align.previous.edition(isbn3, time.series, title.data)  # should fail
+
+```
+
+Output multiple forecasts (test)
+--------------------------------
+
+```{r output.multiple, warning=FALSE, error=FALSE}
+# The purpose of this chunk is to generate many different forecasts for 
+# a single title
+
+# Get all of the time series and title data
+time.series = readRDS("time_series.rds")
+title.data = readRDS("title_data.rds")
+
+# Function to return a forecast of 0s:
+
+forecast.zeros <- function(ts, horizon) {
+  # takes a time series and a horizon and returns 
+  # a 0 forecast over that horizon
+  ts.temp = ts(rep(0,length(ts)), 
+                start = start(ts), 
+                frequency = frequency(ts))
+    ts.fcst = forecast(ts.temp, h=horizon)
+    return(ts.fcst)
+  }
+
+# create a function to forecast a series based on a ts and df index
+
+output.multiple <- function(isbn){  # note that this should be a 2 param fn
+  
+  horizon = 15
+  isbn.prev <- previous.edition.isbn(isbn, title.data) # Get previous edition
+  ts1 = time.series[, isbn]
+  
+  num.contig <- length(na.contiguous(ts1))
+  
+  if (num.contig > 6){
+    # base forecast
+    print("base forecast")
+    base.forecast = forecast(ts1, h=horizon)
+    
+  } else {
+    # zeroes
+    print("zeros")
+    base.forecast = forecast.zeros(ts1, horizon)
+    plot(base.forecast)
+
+  }
+  
+  plot(base.forecast)
+  output <- base.forecast$mean
+
+  # If there's no previous edition return the first title's data
+
+  if (!is.na(isbn.prev)) {
+    ts.summed <- sum.edition.data(isbn, time.series, title.data)
+    summed.prev.fcst = forecast(ts.summed, h = horizon)
+    plot(summed.prev.fcst)
+    output <- cbind(output, summed.prev.fcst$mean)
+    
+    # Add previous edition forecast
+    # Note that this doesn't use the previous
+    # edition as the forecast - it needs to be aligned further with the forecast
+    # period
+    prev.edition <- align.previous.edition(isbn, time.series, title.data)
+    output <- cbind(output, prev.edition)
+    
+    }
+  
+  print(output)
+  
+  # note that the date formatting needs to be fixed
+  # write.csv(file=paste(isbn, ".csv", sep = ""), x=as.data.frame(output))
+  write.zoo(output,file=paste(isbn, ".csv", sep = ""), index.name="Date",sep=",")
+}
+
+isbn = "1319056911"  # How Life Works
+output.multiple(isbn)
+
+# isbn2 = "0312132921"
+# output.multiple(isbn2)
+# isbn3 <- "031243829X"
+# output.multiple(isbn3)
+
+```
+
+
+
+Review Individual Titles
+------------------------
+
+```{r}
+
+time.series = readRDS("time_series.rds")
+title.data = readRDS("title_data.rds")
+
+title.data$Isbn
+
+isbn1 <- "0312132921"
+isbn2 <- "031241501X" # skewed title 1
+isbn3 <- "312566735" # skewed title 2
+isbn4 <- "145760647X" # skewed title 3
+
+skewed.isbns <- as.list(c(isbn2, isbn3, isbn4))
+ts1 = time.series[, isbn4]
+sum(!is.na(ts1))
+ts1.fcst = forecast(ts1, h = 15)
+plot(ts1.fcst)
+
+# test actions.
+str(ts1.fcst)
+ts1.fcst$method
+print(length(na.contiguous(ts1)))
+
+
+```
+
+Plot two time series on a single axis
+-------------------------------------
+
+```{r plot.two}
+
+isbn1 <- "031241501X"
+isbn2 <- "031243829X"
+time.series = readRDS("time_series.rds")
+
+plot.two <- function(isbn1, isbn2, ts) {
+  # Plots two ISBNs in a facet plot, one over the other.  Takes 2 ISBNs as
+  # strings and a time series data frome as input and generates two plots.
+  plot.data <- ts[,c(isbn1, isbn2)]
+  plot.data <- zoo::na.trim(plot.data, sides = "left", is.na = "all")
+  plot(plot.data, main = "Comparative Time Series Plot", 
+       xlab = "Date",
+       ylab = "Units",
+       plot.type = "s", 
+       col = 1:2)
+  legend("topright", 
+         legend = c(isbn1, isbn2),
+         lty = c(1,1),
+         col = 1:2)
+  }
+
+plot.two(isbn1, isbn2, time.series)
+
+
+```
+
+Plot title and previous edition (if any)
+----------------------------------------
+
+```{r previous.edition}
+
+time.series = readRDS("time_series.rds")
+title.data = readRDS("title_data.rds")
+
+isbn1 = "1319056911"  # How Life Works
+isbn2 = "0312132921"
+isbn3 <- "031243829X"
+
+plot.previous.edition <- function(isbn, ts.data, title.data){
+  # Takes an ISBN as a string and two data frames: title data and title
+  # time series as inputs and plots the time series and
+  # the previous edition.  If there is no previous edition, it returns 
+  # an NA.
+  
+  isbn.prev <- previous.edition.isbn(isbn, title.data) # Get previous edition
+  
+  # Fail if there's no previous edition (isbn.prev == NA)
+  if (is.na(isbn.prev)) {
+    return(NA)
+    }
+  
+  # Fail if previous edition has no data (not yet implemented)
+  
+  # Plot results
+  plot.two(isbn1, isbn.prev, time.series)
+}
+
+# Test plot.previous.edition
+plot.previous.edition(isbn1, time.series, title.data)
+plot.previous.edition(isbn2, time.series, title.data)
+
+isbn3 <- "031243829X"
+plot.previous.edition(isbn3, time.series, title.data)
+
+```
+
+
+
+
+Test decomposition with STL
+
+```{r}
+
+isbn = "1319056911"  # How Life Works
+isbn.fit = stl(isbn, s.window = "periodic")
+plot(isbn.fit)
+
+```
+
+Transplant model from previous edition
+--------------------------------------
+* Add the previous edition to the current and forecast that
+* Decompose the previous edition and use the seasonal factors to forecast the current edition, based on current trend
+
+```{r test.transplant.forecast}
+
+# Make current edition and previous edition start with the same year.
+
+time.series = readRDS("time_series.rds")
+title.data = readRDS("title_data.rds")
+
+isbn = "1319056911"  # How Life Works
+isbn2 = "0312132921"
+isbn3 <- "031243829X"
+
+forecast.with.previous <- function(isbn, ts.data, title.data){
+  # Takes an ISBN as a string and two data frames: title data and title
+  # time series as inputs and uses the model from the previous edition
+  # to forecast the new edition. Returns an NA if there's no previous
+  # edition.
+  
+  isbn.prev <- previous.edition.isbn(isbn, title.data) # Get previous edition
+  
+  # Fail if there's no previous edition (isbn.prev == NA)
+  if (is.na(isbn.prev)) {
+    return(NA)
+    }
+  # Fail if previous edition has no data (not yet implemented)
+  ts1 = time.series[, isbn]
+  ts1 <- zoo::na.trim(ts1, sides = "both", is.na = "all")
+  print(ts1)
+  ts1.fcst = forecast(ts1, h=15)
+  plot(ts1.fcst)
+  
+  ts2 = time.series[, isbn.prev]
+  ts2 <- zoo::na.trim(ts2, sides = "both", is.na = "all")
+  print(ts2)
+  ts2.fcst = forecast(ts2, h=15)
+  plot(ts2.fcst)
+  
+  temp = merge.zoo(ts1, ts2)
+  temp[is.na(temp)] <- 0
+  ts3 = temp[,1] + temp[,2]
+  ts3 = ts(ts3, start = start(ts3), frequency = 12)
+  ts3[ts3 < 0] <- 0
+  print(ts3)
+  ts3.fcst = forecast(ts3, h=15)
+  plot(ts3.fcst)
+
+}
+
+# Test plot.previous.edition
+forecast.with.previous(isbn1, time.series, title.data)
+# align.previous.edition(isbn2, time.series, title.data)
+
+isbn3 <- "031243829X"
+forecast.with.previous(isbn3, time.series, title.data)  # should fail
+
+```
+
+Recommend titles to examine
+---------------------------
+
+```{r}
+
+title.data = readRDS("title_data.rds")
+title.forecasts = readRDS("forecasts.rds")
+
+# add another column for whether a review is required
+
+calc.review <- function(forecast, onhand){
+  if(forecast == 0){"Insuff data"}
+  else if(forecast > onhand){"Print review"}
+  else{"No Review"}
+}
+
+title.planning <- title.data %>% rowwise() %>% 
+  dplyr::mutate(Review = calc.review(title.forecasts$three, (Available + Reserved.Stock + Sets.Made.Up))) %>% 
+  dplyr::arrange(Review) %>% 
+  mutate(OQ.6 = title.forecasts$six) %>% 
+  mutate(OQ.9 = title.forecasts$nine) %>% 
+  mutate(OQ.12 = title.forecasts$twelve) %>% 
+  mutate(OQ.15 = title.forecasts$fifteen)
+
+# output to csv
+
+saveRDS(title.planning, "title_planning.rds")
+write.csv(file="Title_Planning.csv", x=title.planning)
+
+```
+
+Release Notes
+-------------
+v6
+* plot.two function
+  * Eliminate leading blanks in plot.two function
+  * Moved both lines into same panel for easier comparison
+* align.previous edition
+  * added function align.previous.edition to produce plot
+  * it aligns peaks, not months - this may need to be changed
+  * It probablly also needs an export, or to at least to print the prev isbn in the legend
+v7
+* skipped
+v8
+* sum.previous.edition function created

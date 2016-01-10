@@ -1,0 +1,21 @@
+---
+title: "Install Packages"
+author: "Ken Brooks"
+date: "December 19, 2015"
+output: html_document
+---
+
+
+```{r}
+install.packages("xts")
+install.packages("readxl")
+install.packages("plyr")
+install.packages("dplyr")
+install.packages("tidyr")
+install.packages("ggplot2")
+install.packages("lubridate")
+install.packages("forecast")
+install.packages("wavelets")
+install.packages("zoo")
+```
+

@@ -1,0 +1,211 @@
+---
+title: "Demand Planning"
+author: "Ken Brooks"
+date: "November 4, 2015"
+output: html_document
+---
+
+Analysis of reprint report
+
+```{r libraries}
+# clear environment and load libraries
+rm(list = ls())
+
+#install.packages("readxl")
+#install.packages("forecast")
+#devtools::install_github("sdwfrost/epiwidgets")
+library(ape)
+library(xts)
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(lubridate)
+library(forecast)
+library(epiwidgets)
+```
+
+Read file
+
+```{r read, echo=FALSE}
+setwd("~/Documents/Macmillan/Projects/Demand Planning")
+
+#filename <- file.choose()
+
+filename <- "Sales by month.csv"
+
+# data = read_csv(filename, sheet = 1, skip = 0)
+
+data = read.csv(filename)
+```
+
+```{r select}
+
+names(data)
+
+valid_column_names <- make.names(names=names(data), unique=TRUE, allow_ = TRUE)
+names(data) <- valid_column_names
+
+data$Title <- make.names(data$Title, allow_ = TRUE)
+
+data = rename(data, Demand.Units = Gross.Units.....Comp.Units)
+
+saveRDS(data, "data.rds")
+
+```
+
+
+```{r demand.ts}
+
+# Build a ts object for further analysis
+
+data = readRDS("data.rds")
+
+glimpse(data)
+
+# Eliminate all columns but Title, Month and Demand.Units
+demand = dplyr::select(data, 
+  Title, 
+  Month,
+  Demand.Units)
+
+glimpse(demand)
+
+# Change format of Month into a date
+
+demand$Month = parse_date_time(as.character(demand$Month), "%Y%m")
+glimpse(demand)
+
+# Filter by Title to make things simple.  Note for later forecasting models to work, the title can't have 0 or negative values (I think).
+
+# demand2 = filter(demand, Title == "DEAD CSCC")
+demand2 = filter(demand, Title == "AMERICAN.LIT..SCARLET.LETTER")
+
+# Build a ts object (time series)
+
+data.ts = ts(demand2$Demand.Units, start = c(2011, 11), frequency = 12)
+
+plot(data.ts)
+
+```
+
+```{r forecast.single.title}
+# Various graphs
+
+plot(data.ts)
+seasonplot(data.ts, 12, year.labels = FALSE)
+tsdisplay(data.ts)
+lag.plot(data.ts, lags=12)
+spectrum(data.ts)
+
+# ets smoothing
+fit <- ets(data.ts)
+fcast1 <- forecast(fit, h=24)
+plot(fcast1)
+fcast1$model$mse
+
+```
+
+```{r details}
+# Details of the forecast
+
+# str(fcast1)  # uncomment to see all of the data available
+
+fcast1$method # Model used
+fcast1$model$par # parameters
+fcast1$mean # forecasted values
+
+```
+
+Next steps:
+-----------
+* Extract seasonality factors - done
+* Get clustering working - done
+* Clean up data
+  * Replace 0 and negatives in gross with 1
+* Do bulk forecasts
+* Calculate OP/OQ
+* Output in useful format (Excel?)
+* Sequential forecasting
+  * Enough data
+  * Not enough for seasonality
+    * Use group coefficients?
+    * Combine with previous title? How?
+    * Use previous edition at the same point in its lifecycle
+  * Not enough for any forecast (use similar title)
+
+
+Bulk forecasting
+----------------
+
+```{r forecast.many.titles, warning=FALSE, error=FALSE}
+# The purpose of this chunk is to generate forecasts for many titles at once
+
+# Get all of the time series
+data = readRDS("data.rds")
+
+demand = data %>% dplyr::select(Month, Title, Demand.Units) %>%
+  tidyr::spread(key = Title, value = Demand.Units)
+rownames(demand) <- demand$Month
+demand3 = demand[,-1] # Remove the Month column since it's now rownames
+
+demand4 = ts(demand3, start = c(2012, 11), frequency = 12)
+
+# create a function to forecast a series based on a ts and df index
+
+fcst.fn <- function(n){
+  # fcst.fn takes an index and returns a Time-Series.
+  # It should take either a data frame or bulk ts, as well
+  fc <- forecast(ets(demand4[,n]), h=12)
+  # Note that fc is a list of 9, x and mean are both class: Time-Series
+  plot(fc, main = colnames(demand4)[n])
+  # extract forecast from model
+  fc$mean
+}
+# Test fcst.fn()
+fcst.fn(1)
+
+# use lapply to apply it to a list of ts indices
+indices = as.list(c(1:5))
+
+lapply(indices, fcst.fn)
+
+```
+
+
+Clustering time series
+----------------------
+
+* experiment with different distance metrics
+* cluster seasonal coefficients instead of the series
+
+```{r cluster, warning=FALSE, error=FALSE}
+# The purpose of this chunk is to cluster time seires.
+
+library(TSclust)
+
+# Get all of the time series
+data = readRDS("data.rds")
+
+demand = data %>% dplyr::select(Month, Title, Demand.Units) %>%
+  tidyr::spread(key = Title, value = Demand.Units)
+rownames(demand) <- demand$Month
+
+demand3 = demand[,-1]  # TSClust uses dataframes
+
+demand4 = demand3[ , ! apply( demand3 , 2 , function(x) any(is.na(x)) ) ]  # This removes titles with NA's in them.  But it kills off way too many titles. A better way to do this might be to do the forecast for all titles first, then extract the seasonal coefficients and use them for clustering.
+
+# Do the clustering (note the transpose)
+tsdist2 <- TSclust::diss( t(demand4), "EUCL")
+
+#perform hierachical clustering to the dist object
+hc2 <- hclust(tsdist2)
+
+#show the results
+plot(hc2)
+
+ape::as.phylo(hc2) %>%
+treewidget()
+
+```
+

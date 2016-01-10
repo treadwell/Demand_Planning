@@ -1,0 +1,124 @@
+---
+title: "Demand Planning"
+author: "Ken Brooks"
+date: "November 4, 2015"
+output: pdf_document
+---
+
+Analysis of reprint report
+
+```{r libraries}
+# clear environment and load libraries
+rm(list = ls())
+
+#install.packages("readxl")
+#install.packages("forecast")
+library(xts)
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(lubridate)
+library(forecast)
+```
+
+Read file
+
+```{r read, echo=FALSE}
+setwd("~/Documents/Macmillan/Projects/Demand Planning")
+
+filename <- file.choose()
+
+# data = read_csv(filename, sheet = 1, skip = 0)
+
+data = read.csv(filename)
+```
+
+```{r select}
+
+names(data)
+
+valid_column_names <- make.names(names=names(data), unique=TRUE, allow_ = TRUE)
+
+names(data) <- valid_column_names
+names(data)
+
+data = rename(data, Demand.Units = Gross.Units.....Comp.Units)
+
+saveRDS(data, "data.rds")
+
+```
+
+
+```{r demand.ts}
+
+# Build a ts object for further analysis
+
+data = readRDS("data.rds")
+
+glimpse(data)
+
+# Eliminate all columns but Title, Month and Demand.Units
+demand = dplyr::select(data, 
+  Title, 
+  Month,
+  Demand.Units)
+
+glimpse(demand)
+
+# Change format of Month into a date
+
+demand$Month = parse_date_time(as.character(demand$Month), "%Y%m")
+glimpse(demand)
+
+# Filter by Title to make things simple.  Note for later forecasting models to work, the title can't have 0 or negative values (I think).
+
+# demand2 = filter(demand, Title == "DEAD CSCC")
+demand2 = filter(demand, Title == "AMERICAN LIT: SCARLET LETTER")
+
+# Build a ts object (time series)
+
+data.ts = ts(demand2$Demand.Units, start = c(2011, 11), frequency = 12)
+
+plot(data.ts)
+
+```
+
+```{r forecast}
+# Various graphs
+
+plot(data.ts)
+seasonplot(data.ts, 12, year.labels = FALSE)
+tsdisplay(data.ts)
+lag.plot(data.ts, lags=12)
+spectrum(data.ts)
+
+# ets smoothing
+fit <- ets(data.ts)
+fcast1 <- forecast(fit, h=24)
+plot(fcast1)
+fcast1$model$mse
+
+```
+
+```{r details}
+# Details of the forecast
+
+# str(fcast1)  # uncomment to see all of the data available
+
+fcast1$method # Model used
+fcast1$model$par # parameters
+fcast1$mean # forecasted values
+
+```
+
+Next steps:
+-----------
+* Extract seasonality factors
+* Calculate OP/OQ
+* Output in useful format (Excel?)
+* Sequential forecasting
+  * Enough data
+  * Not enough for seasonality (use group coefficients)
+  * Not enough for any forecast (use similar title)
+

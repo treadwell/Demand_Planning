@@ -1,0 +1,173 @@
+---
+title: "Recommended Print List"
+author: "Ken Brooks"
+date: "November 13, 2015"
+output: pdf_document
+---
+
+Prepare Environment
+-------------------
+
+```{r libraries, warning=FALSE, echo=FALSE, error=FALSE}
+# clear environment and load libraries
+rm(list = ls())
+
+library(xts)
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(lubridate)
+library(forecast)
+
+```
+
+Import data
+-----------
+
+```{r read, echo=FALSE}
+setwd("~/Documents/Macmillan/Projects/Demand Planning")
+
+#filename <- file.choose()
+
+filename <- "Sales by month.csv"
+
+# data = read_csv(filename, sheet = 1, skip = 0)
+
+data = read.csv(filename)
+```
+
+```{r select}
+
+names(data)
+
+
+valid_column_names <- make.names(names=names(data), unique=TRUE, allow_ = TRUE)
+names(data) <- valid_column_names
+
+data$Title <- gsub("..", ".", make.names(data$Title, allow_ = TRUE), fixed = TRUE)
+data$Author <- gsub("..", ".", make.names(data$Author, allow = TRUE), fixed = TRUE)
+data$Ean <- as.factor(as.character(data$Ean))
+data$Pub.Date <- as.Date(data$Pub.Date)
+
+data = rename(data, Demand.Units = Gross.Units.....Comp.Units)
+
+saveRDS(data, "data.rds")
+
+```
+
+
+Build time series
+-----------------
+
+```{r time.series, warning=FALSE, error=FALSE}
+# The purpose of this chunk is to generate forecasts for many titles at once
+
+# Retrieve stored data
+data = readRDS("data.rds")
+
+demand = data %>% dplyr::select(Month, Isbn, Demand.Units) %>%
+  tidyr::spread(key = Isbn, value = Demand.Units)
+rownames(demand) <- demand$Month
+demand3 = demand[,-1] # Remove the Month column since it's now rownames
+
+demand4 = ts(demand3, start = c(2012, 11), frequency = 12)
+
+glimpse(demand4)
+
+saveRDS(demand4, "time_series.rds")
+
+```
+
+
+Forecast time series
+--------------------
+```{r forecast, warning=FALSE, error=FALSE}
+# The purpose of this chunk is to generate forecasts for many titles at once
+
+# Get all of the time series
+demand4 = readRDS("time_series.rds")
+
+# create a function to forecast a series based on a ts and df index
+
+simple.forecast <- function(n){
+  # fcst.fn takes an index and returns a Time-Series.
+  # It should take either a data frame or bulk ts, as well
+  fc <- forecast(ets(demand4[,n]), h=12)
+  # Note that fc is a list of 9, x and mean are both class: Time-Series
+  plot(fc, main = colnames(demand4)[n])
+  # extract forecast from model
+  fc$mean
+}
+# Test fcst.fn()
+simple.forecast(1)
+
+# use lapply to apply it to a list of ts indices
+indices = as.list(c(1:5))
+
+lapply(indices, simple.forecast)
+
+```
+
+Build title table
+-----------------
+
+```{r title.table}
+
+# Retrieve stored data
+data = readRDS("data.rds")
+
+
+title.data = data %>% dplyr::select(Author, Isbn, Ean, Title, Pub.Date, Medium, Ans.Code, Available,
+                                    Consignment.On.Hand, Reserved.Stock, Sets.Made.Up) %>%
+  distinct(Author, Isbn, Ean, Title, Pub.Date, Medium, Ans.Code, Available,
+                                    Consignment.On.Hand, Reserved.Stock, Sets.Made.Up)
+
+saveRDS(title.data, "title_data.rds")
+
+```
+
+Recommend titles to examine
+---------------------------
+
+```{r}
+
+time.series = readRDS("time_series.rds")
+title.data = readRDS("title_data.rds")
+
+isbn <- "0312649711"
+
+# build a function to calculate 3-mo forecast given an ISBN as a string
+
+n.mo.fcst <- function(n,isbn){
+  ts1 = time.series[, isbn]
+  if(sum(is.na(ts1)) > 24){
+    ts1.nsum = 0}
+  else{
+    ts1.fcst = forecast(ts1, h=n)
+    ts1.nsum = sum(ts1.fcst$mean)}
+  ts1.nsum
+}
+
+
+# add a column for 3 mo forecast into title data via mutate
+# this needs to take the value of the Isbn column as a string and run it
+# through the n.mo.fcst() funtion
+
+title.data <- title.data %>% rowwise() %>% dplyr::mutate(Fcst = n.mo.fcst(3, Isbn))
+
+# add another column for whether a review is required
+
+calc.review <- function(forecast, onhand){
+  if(forecast == 0){"Insuff data"}
+  else if(forecast > onhand){"Print review"}
+  else{"No Review"}
+}
+
+title.data <- title.data %>% rowwise() %>% dplyr::mutate(Review = calc.review(Fcst, Available)) %>% arrange(Review)
+
+# output to csv
+
+write.csv(file="Print_Review.csv", x=title.data)
+
+```
