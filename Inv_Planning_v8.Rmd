@@ -353,8 +353,8 @@ align.previous.edition(isbn3, time.series, title.data)  # should fail
 
 ```
 
-Output multiple forecasts (test)
---------------------------------
+Output multiple forecasts
+-------------------------
 
 ```{r output.multiple, warning=FALSE, error=FALSE}
 # The purpose of this chunk is to generate many different forecasts for 
@@ -380,20 +380,23 @@ forecast.zeros <- function(ts, horizon) {
 
 output.multiple <- function(isbn){  # note that this should be a 2 param fn
   
+  # Generates multiple versions of a forecast to a csv file.  Takes as input 
+  # ISBN and implicit time.series and title.data data frames
+  
   horizon = 15
   isbn.prev <- previous.edition.isbn(isbn, title.data) # Get previous edition
   ts1 = time.series[, isbn]
   
-  num.contig <- length(na.contiguous(ts1))
+  num.contig <- length(na.contiguous(ts1))  # how many contiguous values?
   
-  if (num.contig > 6){
+  if (num.contig > 6){  # if there's enough data, generate a forecast
+    
     # base forecast
-    print("base forecast")
     base.forecast = forecast(ts1, h=horizon)
     
-  } else {
-    # zeroes
-    print("zeros")
+  } else {   # if there's not enough data, generate a zero forecast
+    
+    # zeroes forecast
     base.forecast = forecast.zeros(ts1, horizon)
     plot(base.forecast)
 
@@ -402,24 +405,33 @@ output.multiple <- function(isbn){  # note that this should be a 2 param fn
   plot(base.forecast)
   output <- base.forecast$mean
 
-  # If there's no previous edition return the first title's data
+  # If there's a previous edition, generate additional forecasts
 
   if (!is.na(isbn.prev)) {
+    
+    # generate a forecast from current edition plus previous edition
+    
     ts.summed <- sum.edition.data(isbn, time.series, title.data)
     summed.prev.fcst = forecast(ts.summed, h = horizon)
     plot(summed.prev.fcst)
     output <- cbind(output, summed.prev.fcst$mean)
     
-    # Add previous edition forecast
-    # Note that this doesn't use the previous
-    # edition as the forecast - it needs to be aligned further with the forecast
-    # period
-    prev.edition <- align.previous.edition(isbn, time.series, title.data)
-    output <- cbind(output, prev.edition)
+    # generate a forecast that is simply the previous editions data
+    
+    prev.edition <- align.previous.edition(isbn, time.series, title.data) # aligns data
+    
+    # take the window associated with the forecast
+    
+    prev.edition.2 <- window(prev.edition, 
+                      start= start(summed.prev.fcst$mean),
+                      end = end(summed.prev.fcst$mean),
+                      extend = F)
+
+    output <- cbind(output, prev.edition.2)
     
     }
   
-  print(output)
+  # print(output)
   
   # note that the date formatting needs to be fixed
   # write.csv(file=paste(isbn, ".csv", sep = ""), x=as.data.frame(output))
@@ -435,7 +447,6 @@ output.multiple(isbn)
 # output.multiple(isbn3)
 
 ```
-
 
 
 Review Individual Titles
@@ -656,3 +667,4 @@ v7
 * skipped
 v8
 * sum.previous.edition function created
+* output.multiple function created
