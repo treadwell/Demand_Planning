@@ -160,11 +160,26 @@ build.forecast.DF <- function(title.data, time.series.data){
   # Build df of forecasts along with 3-15 month accumulations. Save to rds and CSV,
   # returns the forecast df.
   
-  title.forecasts <- ldply(head(title.data$Isbn), n.month.forecast, time.series.data, 15)
+  test_titles = head(title.data$Isbn)
+  
+  title.forecasts <- ldply(test_titles, n.month.forecast, time.series.data, 15)
+  
+  print(class(title.forecasts))
   
   # add names
-#   title.data$Isbn
-#   rownames(title.forecasts) <- as.character(title.data$Isbn)
+  
+  print(row.names(title.forecasts))
+  
+  print(length(test_titles))
+  
+  
+  
+  # row.names(title.forecasts) <-  c("a", "b", "c", "d", "e", "f")
+  row.names(title.forecasts) <-  test_titles
+  
+  print(row.names(title.forecasts))
+
+  # rownames(title.forecasts) <- as.list(as.character(test_titles))
   
   # rownames(title.forecasts[1,])
   
