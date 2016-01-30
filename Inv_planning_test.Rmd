@@ -89,7 +89,7 @@ Forecast time series
 
 ```{r forecast, warning=FALSE, error=FALSE}
 # The purpose of this chunk is to generate forecasts for many titles at once
-
+rm(list = ls())
 # Get all of the time series and title data
 time.series.data = readRDS("time_series.rds")
 title.data = readRDS("title_data.rds")

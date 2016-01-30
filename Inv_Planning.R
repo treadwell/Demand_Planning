@@ -185,12 +185,12 @@ build.forecast.DF <- function(title.data, time.series.data){
   
   # Add cumulative forecast quantities. Note that titles are in rows!
   
-  title.forecasts <- title.forecasts %>% mutate(three = rowSums(.[1:3])) %>%
-    mutate(six = rowSums(.[1:6])) %>%
-    mutate(nine = rowSums(.[1:9])) %>%
-    mutate(twelve = rowSums(.[1:12])) %>%
-    mutate(fifteen = rowSums(.[1:15]))
-  
+#   title.forecasts <- title.forecasts %>% mutate(three = rowSums(.[1:3])) %>%
+#     mutate(six = rowSums(.[1:6])) %>%
+#     mutate(nine = rowSums(.[1:9])) %>%
+#     mutate(twelve = rowSums(.[1:12])) %>%
+#     mutate(fifteen = rowSums(.[1:15]))
+#   
   saveRDS(title.forecasts, "forecasts.rds")
   write.csv(file="Title_forecasts.csv", x=title.forecasts)
   return(title.forecasts)
