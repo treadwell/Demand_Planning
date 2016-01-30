@@ -23,8 +23,6 @@ library(lubridate)
 library(forecast)
 source("Inv_Planning.R")
 
-getwd()
-
 
 ```
 
@@ -44,7 +42,7 @@ Prepare data
 ```{r format.data}
 
 checkData(data)  # check that nothing has changed in input format
-cleanImportedData(data)  # cleanup imported data
+data <- cleanImportedData(data)  # cleanup imported data
 saveRDS(data, "data.rds")
 
 ```
@@ -58,12 +56,32 @@ Build data frames
 data = readRDS("data.rds")
 
 title.data <- createTitleDF(data)  # create title metadata df
-time.series <- createTSDF(data)  # create time.series df
+time.series.data <- createTSDF(data)  # create time.series df
+
 
 saveRDS(title.data, "title_data.rds")
-saveRDS(time.series, "time_series.rds")
+saveRDS(time.series.data, "time_series.rds")
 
 ```
+
+
+Generate a single forecast
+--------------------------
+
+```{r}
+
+source("Inv_Planning.R")
+time.series.data = readRDS("time_series.rds")
+
+isbn = "0716756676"
+
+fcst <- n.month.forecast(isbn, time.series.data, 15)
+
+fcst
+
+
+```
+
 
 
 Forecast time series
@@ -76,7 +94,14 @@ Forecast time series
 time.series.data = readRDS("time_series.rds")
 title.data = readRDS("title_data.rds")
 
+source("Inv_Planning.R")
+
 title.forecasts <- build.forecast.DF(title.data, time.series.data)
+
+
+head(title.forecasts)
+
+# where are the rownames?
 
 ```
 

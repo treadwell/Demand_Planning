@@ -8,25 +8,6 @@ library(lubridate)
 library(forecast)
 # importFrom(dplyr,"%>%")
 
-
-cleanImportedData <- function(data){
-  # prepares imported data for analysis
-  
-  valid_column_names <- make.names(names=names(data), unique=TRUE, allow_ = TRUE)
-  names(data) <- valid_column_names
-  
-  data$Title <- gsub("..", ".", make.names(data$Title, allow_ = TRUE), fixed = TRUE)
-  data$Author <- gsub("..", ".", make.names(data$Author, allow = TRUE), fixed = TRUE)
-  data$Ean <- as.factor(as.character(data$Ean))
-  data$Prev.Edition.Ean <- as.factor(as.character(data$Prev.Edition.Ean))
-  data$Pub.Date <- as.Date(as.character(data$Pub.Date), format = "%m/%d/%Y")
-  # data$Month <- as.Date(as.character(data$Month), format = "%Y%m")
-  
-  data$Month = as.Date(paste(as.character(data$Month), "01", sep = ""), format = "%Y%m%d")
-  
-  data <- unique(data)  # Eliminate duplicates
-}
-
 checkData <- function(data){
   stopifnot(dim(data)[2] == 16,
             is.factor(data$Author),
@@ -47,6 +28,28 @@ checkData <- function(data){
             is.numeric(data$Prev.Edition.Ean))
 }
 
+cleanImportedData <- function(data){
+  # prepares imported data for analysis
+  
+  valid_column_names <- make.names(names=names(data), unique=TRUE, allow_ = TRUE)
+  names(data) <- valid_column_names
+  
+  data$Title <- gsub("..", ".", make.names(data$Title, allow_ = TRUE), fixed = TRUE)
+  data$Author <- gsub("..", ".", make.names(data$Author, allow = TRUE), fixed = TRUE)
+  data$Ean <- as.factor(as.character(data$Ean))
+  data$Prev.Edition.Ean <- as.factor(as.character(data$Prev.Edition.Ean))
+  data$Pub.Date <- as.Date(as.character(data$Pub.Date), format = "%m/%d/%Y")
+  # data$Month <- as.Date(as.character(data$Month), format = "%Y%m")
+  
+  data$Month = as.Date(paste(as.character(data$Month), "01", sep = ""), format = "%Y%m%d")
+  
+  data <- unique(data)  # Eliminate duplicates
+  
+  return(data)
+}
+
+
+
 createTitleDF <- function(data){
   # creates a title metadata dataframe
   
@@ -56,6 +59,8 @@ createTitleDF <- function(data){
 }
 
 createTSDF <- function(data){
+  # Creates a time series data frame from the source data. This DF does not contain
+  # any forecasted information.
   
   demand = data %>% dplyr::select(Month, Isbn, Gross.Units) 
   
@@ -121,8 +126,14 @@ sum.edition.data <- function(isbn, time.series.data, title.data){
   return(title.3)
 }
 
-n.month.forecast <- function(isbn, time.series.data, horizon){  # note that this should be a 2 param fn
-  ts1 = time.series.data[, isbn]
+n.month.forecast <- function(isbn, time.series.data, horizon){
+  # Generates a forecast over the specified horizon for a particular isbn.
+  # Takes an isbn as a string, a time series dataframe (to look up the data),
+  # and the specified horizon.  Returns a single column dataframe of the
+  # forecast
+  
+  ts1 = time.series.data[, isbn] # get title demand
+  
   # if there's more than 24 months of data, generate forecast,
   # else generate a zero forecast to drive a manual review.
   # This needs to generate the forecast to see if it's flat.
@@ -134,7 +145,14 @@ n.month.forecast <- function(isbn, time.series.data, horizon){  # note that this
   }
   else{
     ts1.fcst = forecast(ts1, h=horizon)$mean}
-  return(ts1.fcst)
+  
+  ts1.fcst.df <- data.frame(Y = coredata(ts1.fcst))
+  rownames(ts1.fcst.df) <- as.Date(as.yearmon(time(ts1.fcst)))
+  colnames(ts1.fcst.df) <- as.character(isbn)
+  
+  # names(ts1.fcst.df) <- isbn
+  
+  return(ts1.fcst.df)
 }
 
 build.forecast.DF <- function(title.data, time.series.data){
@@ -147,7 +165,7 @@ build.forecast.DF <- function(title.data, time.series.data){
   title.data$Isbn
   rownames(title.forecasts) <- as.character(title.data$Isbn)
   
-  rownames(title.forecasts[1,])
+  # rownames(title.forecasts[1,])
   
   # Add cumulative forecast quantities. Note that titles are in rows!
   
