@@ -146,13 +146,14 @@ n.month.forecast <- function(isbn, time.series.data, horizon){
   else{
     ts1.fcst = forecast(ts1, h=horizon)$mean}
   
-  ts1.fcst.df <- data.frame(Y = coredata(ts1.fcst))
-  rownames(ts1.fcst.df) <- as.Date(as.yearmon(time(ts1.fcst)))
-  colnames(ts1.fcst.df) <- as.character(isbn)
+  return(ts1.fcst)
   
-  # names(ts1.fcst.df) <- isbn
-  
-  return(ts1.fcst.df)
+  # Try returning a dataframe instead of an ts object
+#   ts1.fcst.df <- data.frame(Y = coredata(ts1.fcst))
+#   rownames(ts1.fcst.df) <- as.Date(as.yearmon(time(ts1.fcst)))
+#   colnames(ts1.fcst.df) <- as.character(isbn)
+#   return(ts1.fcst.df)
+
 }
 
 build.forecast.DF <- function(title.data, time.series.data){
@@ -162,8 +163,8 @@ build.forecast.DF <- function(title.data, time.series.data){
   title.forecasts <- ldply(title.data$Isbn, n.month.forecast, time.series.data, 15)
   
   # add names
-  title.data$Isbn
-  rownames(title.forecasts) <- as.character(title.data$Isbn)
+#   title.data$Isbn
+#   rownames(title.forecasts) <- as.character(title.data$Isbn)
   
   # rownames(title.forecasts[1,])
   
