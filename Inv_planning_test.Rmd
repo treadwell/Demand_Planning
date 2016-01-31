@@ -65,20 +65,23 @@ saveRDS(time.series.data, "time_series.rds")
 ```
 
 
-Generate a single forecast
---------------------------
+Forecast a single title
+-----------------------
+The "n.month.forecast" function is used to generate a forecast for a single title.   It generates a forecast over the specified horizon for a particular isbn.
+Usage:
+* The function takes an isbn as a string, a time series dataframe (to look up the data), and a specified horizon.  
+* It returns a single column dataframe of the forecast, indexed by the date of the forecast.
+* Examples:
 
 ```{r}
 
-source("Inv_Planning.R")
-time.series.data = readRDS("time_series.rds")
+isbn = "0716756676"  # set the ISBN (this can be changed)
 
-isbn = "0716756676"
+time.series.data = readRDS("time_series.rds") # read the time series data
 
-fcst <- n.month.forecast(isbn, time.series.data, 15)
+fcst <- n.month.forecast(isbn, time.series.data, 15) # generate the forecast 
 
-fcst
-
+fcst  # display it
 
 ```
 
@@ -87,10 +90,18 @@ fcst
 Forecast all titles
 -------------------
 
+The "build.forecast.DF" function is used to generate a forecast for all of the titles in a title.data data frame.   It uses "n.month.forecast" above, iteratively to generate the forecasts.
+Usage:
+* The function takes a title.data data frame and and time.series.data data frame (see above)  
+* It returns a data frame of forecasts along with 3, 6, 9, 12 and 15-month accumulations. 
+* It saves these to both to rds and CSV 
+* Examples:
+
 ```{r forecast, warning=FALSE, error=FALSE}
-# The purpose of this chunk is to generate forecasts for many titles at once
 
 # Get all of the time series and title data
+time.series.data = readRDS("time_series.rds")
+title.data = readRDS("title_data.rds")
 
 
 title.forecasts <- build.forecast.DF(title.data, time.series.data)
