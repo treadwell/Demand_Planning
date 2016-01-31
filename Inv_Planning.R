@@ -146,13 +146,13 @@ n.month.forecast <- function(isbn, time.series.data, horizon){
   else{
     ts1.fcst = forecast(ts1, h=horizon)$mean}
   
-  return(ts1.fcst)
+  # return(ts1.fcst)
   
   # Try returning a dataframe instead of an ts object
-#   ts1.fcst.df <- data.frame(Y = coredata(ts1.fcst))
-#   rownames(ts1.fcst.df) <- as.Date(as.yearmon(time(ts1.fcst)))
-#   colnames(ts1.fcst.df) <- as.character(isbn)
-#   return(ts1.fcst.df)
+  ts1.fcst.df <- data.frame(Y = coredata(ts1.fcst))
+  rownames(ts1.fcst.df) <- as.Date(as.yearmon(time(ts1.fcst)))
+  colnames(ts1.fcst.df) <- as.character(isbn)
+  return(ts1.fcst.df)
 
 }
 
@@ -160,24 +160,36 @@ build.forecast.DF <- function(title.data, time.series.data){
   # Build df of forecasts along with 3-15 month accumulations. Save to rds and CSV,
   # returns the forecast df.
   
+  
+  
   test_titles = head(title.data$Isbn)
   
-  title.forecasts <- ldply(test_titles, n.month.forecast, time.series.data, 15)
+  first_title = head(title.data$Isbn)[1]
+  first_forecast = n.month.forecast(first_title, time.series.data, 15)
   
-  print(class(title.forecasts))
+  names <- row.names(first_forecast)
+  print(names)
+  print(length(names))
   
-  # add names
+  # ts1 = time.series.data[, isbn] 
   
-  print(row.names(title.forecasts))
+  title.forecasts <- llply(test_titles, n.month.forecast, time.series.data, 15)
+  title.forecasts <- do.call(cbind, title.forecasts)
   
-  print(length(test_titles))
+#   print(class(title.forecasts))
+#   
+#   # add names
+#   
+#   print(row.names(title.forecasts))
+#   
+#   print(length(test_titles))
   
-  
-  
-  # row.names(title.forecasts) <-  c("a", "b", "c", "d", "e", "f")
-  row.names(title.forecasts) <-  test_titles
-  
-  print(row.names(title.forecasts))
+#   
+# #   
+#   row.names(title.forecasts) <-  row.names(first_forecast)
+#   row.names(title.forecasts) <-  test_titles
+#   
+#   print(row.names(title.forecasts))
 
   # rownames(title.forecasts) <- as.list(as.character(test_titles))
   
