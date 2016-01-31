@@ -237,3 +237,13 @@ align.previous.edition <- function(isbn, ts.data, title.data){
   
   return(title.3)
 }
+
+forecast.zeros <- function(ts, horizon) {
+  # takes a time series and a horizon and returns 
+  # a 0 forecast over that horizon
+  ts.temp = ts(rep(0,length(ts)), 
+               start = start(ts), 
+               frequency = frequency(ts))
+  ts.fcst = forecast(ts.temp, h=horizon)
+  return(ts.fcst)
+}
