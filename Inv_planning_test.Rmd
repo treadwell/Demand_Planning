@@ -84,12 +84,12 @@ fcst
 
 
 
-Forecast time series
---------------------
+Forecast all titles
+-------------------
 
 ```{r forecast, warning=FALSE, error=FALSE}
 # The purpose of this chunk is to generate forecasts for many titles at once
-rm(list = ls())
+
 # Get all of the time series and title data
 time.series.data = readRDS("time_series.rds")
 title.data = readRDS("title_data.rds")
@@ -99,9 +99,7 @@ source("Inv_Planning.R")
 title.forecasts <- build.forecast.DF(title.data, time.series.data)
 
 
-head(title.forecasts)
-
-# where are the rownames?
+# Check the csv for strings in the ISBNs
 
 ```
 

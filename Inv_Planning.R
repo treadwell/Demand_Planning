@@ -161,9 +161,8 @@ build.forecast.DF <- function(title.data, time.series.data){
   # returns the forecast df.
   
   
-  test_titles = head(title.data$Isbn) # Select a subset of titles to run
+  test_titles = title.data$Isbn # Select a subset of titles to run by subsetting
 
-  
   title.forecasts <- llply(test_titles, n.month.forecast, time.series.data, 15)
   title.forecasts <- do.call(cbind, title.forecasts)
   
