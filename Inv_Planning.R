@@ -161,48 +161,27 @@ build.forecast.DF <- function(title.data, time.series.data){
   # returns the forecast df.
   
   
-  
-  test_titles = head(title.data$Isbn)
-  
-  first_title = head(title.data$Isbn)[1]
-  first_forecast = n.month.forecast(first_title, time.series.data, 15)
-  
-  names <- row.names(first_forecast)
-  print(names)
-  print(length(names))
-  
-  # ts1 = time.series.data[, isbn] 
+  test_titles = head(title.data$Isbn) # Select a subset of titles to run
+
   
   title.forecasts <- llply(test_titles, n.month.forecast, time.series.data, 15)
   title.forecasts <- do.call(cbind, title.forecasts)
   
-#   print(class(title.forecasts))
-#   
-#   # add names
-#   
-#   print(row.names(title.forecasts))
-#   
-#   print(length(test_titles))
-  
-#   
-# #   
-#   row.names(title.forecasts) <-  row.names(first_forecast)
-#   row.names(title.forecasts) <-  test_titles
-#   
-#   print(row.names(title.forecasts))
+  dates <- rownames(title.forecasts)
+  isbns <- colnames(title.forecasts)
+  title.forecasts <- data.frame(t(title.forecasts))
+  colnames(title.forecasts) <- dates
 
-  # rownames(title.forecasts) <- as.list(as.character(test_titles))
-  
-  # rownames(title.forecasts[1,])
-  
   # Add cumulative forecast quantities. Note that titles are in rows!
   
-#   title.forecasts <- title.forecasts %>% mutate(three = rowSums(.[1:3])) %>%
-#     mutate(six = rowSums(.[1:6])) %>%
-#     mutate(nine = rowSums(.[1:9])) %>%
-#     mutate(twelve = rowSums(.[1:12])) %>%
-#     mutate(fifteen = rowSums(.[1:15]))
-#   
+  title.forecasts <- title.forecasts %>% mutate(three = rowSums(.[1:3])) %>%
+    mutate(six = rowSums(.[1:6])) %>%
+    mutate(nine = rowSums(.[1:9])) %>%
+    mutate(twelve = rowSums(.[1:12])) %>%
+    mutate(fifteen = rowSums(.[1:15]))
+  
+  rownames(title.forecasts) <- isbns
+  
   saveRDS(title.forecasts, "forecasts.rds")
   write.csv(file="Title_forecasts.csv", x=title.forecasts)
   return(title.forecasts)
