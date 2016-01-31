@@ -185,3 +185,55 @@ build.forecast.DF <- function(title.data, time.series.data){
   write.csv(file="Title_forecasts.csv", x=title.forecasts)
   return(title.forecasts)
 }
+
+align.previous.edition <- function(isbn, ts.data, title.data){
+  # Takes an ISBN as a string and two data frames: title data and title
+  # time series as inputs and plots the time series and the previous
+  # edition aligned at peak sales.  If there is no previous edition, 
+  # it returns an NA.
+  
+  isbn.prev <- previous.edition.isbn(isbn, title.data) # Get previous edition
+  
+  # Fail if there's no previous edition (isbn.prev == NA)
+  if (is.na(isbn.prev)) {
+    return(NA)
+  }
+  # Fail if previous edition has no data (not yet implemented)
+  
+  # Find the peak sales month for each title
+  title.1 <- ts.data[,isbn]
+  title.1.max <- which.max(title.1)
+  
+  title.2 <- ts.data[,isbn.prev]
+  title.2.max <- which.max(title.2)
+  
+  # Determine how much to shift the previous edition to match peaks. 
+  # Shift should be in 12 month increments
+  
+  shift = title.1.max - title.2.max   #shifting by this amount would align peaks
+  
+  shift = 12 * round(shift / 12.0)   # Makes shifts in 12 month increments
+  
+  #make room in the title to allow for the shift
+  title.3 <- window(title.2, 
+                    start= start(title.2),
+                    end = end(title.2) + shift,
+                    extend = TRUE)
+  
+  title.3 <- lag(title.3, shift)  # do the shift
+  
+  # Trim leading and trailing NAs and plot
+  plot.data <- cbind(title.1, title.3)
+  plot.data <- zoo::na.trim(plot.data, sides = "both", is.na = "all")
+  plot(plot.data, main = "Plot versus previous edition",
+       xlab = "Date",
+       ylab = "Units",
+       plot.type = "s", 
+       col = 1:2)
+  legend("topright", 
+         legend = c(isbn1, "previous"),
+         lty = c(1,1),
+         col = 1:2)
+  
+  return(title.3)
+}
