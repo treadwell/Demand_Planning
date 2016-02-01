@@ -231,7 +231,7 @@ align.previous.edition <- function(isbn, ts.data, title.data){
        plot.type = "s", 
        col = 1:2)
   legend("topright", 
-         legend = c(isbn1, "previous"),
+         legend = c(isbn, "previous"),
          lty = c(1,1),
          col = 1:2)
   
@@ -246,4 +246,67 @@ forecast.zeros <- function(ts, horizon) {
                frequency = frequency(ts))
   ts.fcst = forecast(ts.temp, h=horizon)
   return(ts.fcst)
+}
+
+output.multiple <- function(isbn, time.series.data, title.data){  # note that this should be a 2 param fn
+  
+  # Generates multiple versions of a forecast to a csv file.  Takes as input 
+  # ISBN and implicit time.series and title.data data frames
+  
+  horizon = 15
+  isbn.prev <- previous.edition.isbn(isbn, title.data) # Get previous edition
+  ts1 = time.series.data[, isbn]
+  
+  num.contig <- length(na.contiguous(ts1))  # how many contiguous values?
+  
+  if (num.contig > 6){  # if there's enough data, generate a forecast
+    
+    # base forecast
+    base.forecast = forecast(ts1, h=horizon)
+    
+  } else {   # if there's not enough data, generate a zero forecast
+    
+    # zeroes forecast
+    base.forecast = forecast.zeros(ts1, horizon)
+    plot(base.forecast)
+    
+  }
+  
+  plot(base.forecast)
+  output <- base.forecast$mean
+  
+  # If there's a previous edition, generate additional forecasts
+  
+  if (!is.na(isbn.prev)) {
+    
+    # generate a forecast from current edition plus previous edition
+    
+    ts.summed <- sum.edition.data(isbn, time.series.data, title.data)
+    summed.prev.fcst = forecast(ts.summed, h = horizon)
+    plot(summed.prev.fcst)
+    output <- cbind(output, summed.prev.fcst$mean)
+    
+    # generate a forecast that is simply the previous editions data
+    
+    prev.edition <- align.previous.edition(isbn, time.series.data, title.data) # aligns data
+    
+    # take the window associated with the forecast
+    
+    prev.edition.2 <- window(prev.edition, 
+                             start= start(summed.prev.fcst$mean),
+                             end = end(summed.prev.fcst$mean),
+                             extend = F)
+    
+    output <- cbind(output, prev.edition.2)
+    
+  }
+  
+  # print(output)
+  
+  # note that the date formatting needs to be fixed
+  # output should be a data frame
+  # write.csv(file=paste(isbn, ".csv", sep = ""), x=as.data.frame(output))
+  write.zoo(output,file=paste(isbn, ".csv", sep = ""), index.name="Date",sep=",")
+  
+  return(output)
 }

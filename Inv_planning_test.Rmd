@@ -38,6 +38,27 @@ data = read.csv(filename)
 
 Prepare data
 ------------
+Data preparation involves two steps once the import from the csv file is complete:
+* Making sure that nothing has changed in the formatting of the input data.  This is accomplished via the "checkData" function.
+* Doing base cleanup on data to make sure that dates are formatted correctly, among other things. This is performed via the "cleanImportedData" function.
+
+checkData(data) function
+------------------------
+The "checkData" function is used to verify that the format of an incoming CSV file has not changed from that expected.
+
+Usage:
+* The function takes a data frame, data, as an input. 
+* It returns nothing, but if a change in format has occurred, it throws an error encouraging the analyst to discover what has changed in the input data structure.
+* A future enhancement of this function would identify the specific location of the error. 
+
+cleanImportedData(data) function
+--------------------------------
+The "cleanImportedData" function is used to perform base cleanup on imported data to make sure that dates are formatted correctly, among other things. 
+
+Usage:
+* The function takes a data frame, data, as an input. 
+* It returns a data frame with correctly formatted columns for further processing.
+
 
 ```{r format.data}
 
@@ -49,6 +70,23 @@ saveRDS(data, "data.rds")
 
 Build data frames
 -----------------
+There are two data frames required for further analysis: the title.data data frame and the time.series.data data frame.  These two data frames hold title metadata and title historical demand, respectively and are created by the "createTitleDF(data)" and "createTSDF(data)" functions.
+
+createTitleDF(data) function
+----------------------------
+The createTitleDF(data) function extracts title metadata from the imported file, normalizes the result and saves the data into a .rds file.
+
+Usage:
+* The function takes the imported and cleaned data frame from cleanImportedData(data)
+* It returns a normalized title.data data frame and saves title_data.rds to disk.
+
+createTSDF(data) function
+----------------------------
+The createTSDF(data) function extracts title demand data from the imported file, normalizes the result and saves the data into a .rds file. The TSDF in the function name refers to "Time Series Data Frame."
+
+Usage:
+* The function takes the imported and cleaned data frame from cleanImportedData(data).
+* It returns a time.series.data data frame and saves time_series.rds to disk.
 
 ```{r data.frames}
 
@@ -68,6 +106,7 @@ saveRDS(time.series.data, "time_series.rds")
 Forecast a single title
 -----------------------
 The "n.month.forecast" function is used to generate a forecast for a single title.   It generates a forecast over the specified horizon for a particular isbn.
+
 Usage:
 * The function takes an isbn as a string, a time series dataframe (to look up the data), and a specified horizon.  
 * It returns a single column dataframe of the forecast, indexed by the date of the forecast.
@@ -85,17 +124,21 @@ fcst  # display it
 
 ```
 
-
-
 Forecast all titles
 -------------------
 
 The "build.forecast.DF" function is used to generate a forecast for all of the titles in a title.data data frame.   It uses "n.month.forecast" above, iteratively to generate the forecasts.
+
 Usage:
 * The function takes a title.data data frame and and time.series.data data frame (see above)  
 * It returns a data frame of forecasts along with 3, 6, 9, 12 and 15-month accumulations. 
-* It saves these to both to rds and CSV 
-* Examples:
+* It saves these to both to rds and CSV
+
+Enhancements:
+* Check the csv for strings in the ISBNs - dropping leading zeros
+* Replace all negative forecasts with 0 before doing the sum (or do this on the base forecast?)
+
+Examples:
 
 ```{r forecast, warning=FALSE, error=FALSE}
 
@@ -103,121 +146,116 @@ Usage:
 time.series.data = readRDS("time_series.rds")
 title.data = readRDS("title_data.rds")
 
-
 title.forecasts <- build.forecast.DF(title.data, time.series.data)
-
-# Check the csv for strings in the ISBNs - dropping leading zeros
-# replace all negative forecasts with 0 before doing the sum (or do this
-# on the base forecast?)
 
 ```
 
-Align previous edition with current and plot
---------------------------------------------
+previous.edition.isbn(isbn, title.df)
+-------------------------------------
+This function returns the previous edition's ISBN.
 
-```{r align.previous.edition}
-# Make current edition and previous edition start with the same year.
+Usage:
+* Takes ISBN as a string, and a data frame as an input.
+* It returns the previous ISBN as a string, or NA if no previous ISBN is available.
+
+```{r previous.edition.isbn}
+
+title.data = readRDS("title_data.rds")
+source("Inv_Planning.R")
+
+isbn1 = "1319056911"  # How Life Works
+previous.edition.isbn(isbn1, title.data)
+
+isbn2 <- "031243829X"  # Note that this title does not have a previous edition
+previous.edition.isbn(isbn2, title.data)  # should fail
+
+```
+
+sum.edition.data(isbn, time.series.data, title.data)
+----------------------------------------------------
+In the event that a title does not have sufficient data to generate a forecast, it might be helpful to add the previous edition's data to the current edition to provide a longer time series.  This function essentially creates a third title by adding the current edition's data and the previous edition's data.
+
+Usage:
+* Takes an ISBN as a string and two data frames: title data and title time series as inputs
+* Returns a new time series with the summed values from that ISBN and its previous edition. If there is no previous edition, it returns the data from the first edition only.
+
+```{r sum.edition.data}
 
 time.series.data = readRDS("time_series.rds")
 title.data = readRDS("title_data.rds")
-
 source("Inv_Planning.R")
 
+isbn1 = "1319056911"  # How Life Works
+sum.edition.data(isbn1, time.series.data, title.data)
+
+isbn2 <- "031243829X"  # Note that this title does not have a previous edition
+sum.edition.data(isbn2, time.series.data, title.data)  
+# which should be the same as the data from the previous edition:
+time.series.data[,isbn2]
+
+```
+
+
+align.previous.edition(isbn, time.series.data, title.data)
+----------------------------------------------------------
+The align.previous.edition() function takes an ISBN (as a string) and two data frames: title data and title time series as inputs and plots the time series and the previous edition aligned at peak sales.  It returns the previous title sales shifted in time so that the previous edition sales can be used as a forecast for the current edition. If there is no previous edition, it returns an NA.
+
+```{r align.previous.edition}
+
+time.series.data = readRDS("time_series.rds")
+title.data = readRDS("title_data.rds")
+source("Inv_Planning.R")
 
 isbn1 = "1319056911"  # How Life Works
-isbn2 = "0312132921"
-isbn3 <- "031243829X"
-
-
-
-# Test plot.previous.edition
 align.previous.edition(isbn1, time.series.data, title.data)
-# align.previous.edition(isbn2, time.series, title.data)
 
-isbn3 <- "031243829X"
+isbn3 <- "031243829X"  # Note that this title does not have a previous edition
 align.previous.edition(isbn3, time.series.data, title.data)  # should fail
 
 ```
 
-Output multiple forecasts
--------------------------
+forecast.zeros(ts, horizon)
+---------------------------
+This function ttakes a time series and a horizon and returns a 0 forecast over that horizon.
+
+```{r forecast.zeros}
+
+time.series.data = readRDS("time_series.rds")
+title.data = readRDS("title_data.rds")
+source("Inv_Planning.R")
+
+isbn1 = "1319056911"  # How Life Works
+ts = time.series.data[,isbn1] # get the time series for this title
+forecast.zeros(ts, 15)
+
+# should this only be the point forecast?
+```
+
+
+output.multiple(isbn, time.series.data, title.data)
+---------------------------------------------------
+Generates multiple forecast variants based on the amount of information available for title demand.  Among the forecasts considered are:
+* An n.month.forecast()
+* A forecast based on sum.edition.data()
+* Data from the previous edition shifted to be the forecast for the current edition from align.previous.edition()
+* forecast.zeros() in the event that nothing works
+
+Usage
+* The function takes an ISBN (as a string) and time.series.data and title.data data frames
+* The function returns a datafram of all relevant forecasts and saves a CSV file (isbn.csv), with the same information for inspection and usage
+
 
 ```{r output.multiple, warning=FALSE, error=FALSE}
-# The purpose of this chunk is to generate many different forecasts for 
-# a single title
 
+rm(list = ls())
 # Get all of the time series and title data
-time.series = readRDS("time_series.rds")
+time.series.data = readRDS("time_series.rds")
 title.data = readRDS("title_data.rds")
+source("Inv_Planning.R")
 
-# Function to return a forecast of 0s:
-
-
-
-# create a function to forecast a series based on a ts and df index
-
-output.multiple <- function(isbn){  # note that this should be a 2 param fn
-  
-  # Generates multiple versions of a forecast to a csv file.  Takes as input 
-  # ISBN and implicit time.series and title.data data frames
-  
-  horizon = 15
-  isbn.prev <- previous.edition.isbn(isbn, title.data) # Get previous edition
-  ts1 = time.series[, isbn]
-  
-  num.contig <- length(na.contiguous(ts1))  # how many contiguous values?
-  
-  if (num.contig > 6){  # if there's enough data, generate a forecast
-    
-    # base forecast
-    base.forecast = forecast(ts1, h=horizon)
-    
-  } else {   # if there's not enough data, generate a zero forecast
-    
-    # zeroes forecast
-    base.forecast = forecast.zeros(ts1, horizon)
-    plot(base.forecast)
-
-  }
-  
-  plot(base.forecast)
-  output <- base.forecast$mean
-
-  # If there's a previous edition, generate additional forecasts
-
-  if (!is.na(isbn.prev)) {
-    
-    # generate a forecast from current edition plus previous edition
-    
-    ts.summed <- sum.edition.data(isbn, time.series, title.data)
-    summed.prev.fcst = forecast(ts.summed, h = horizon)
-    plot(summed.prev.fcst)
-    output <- cbind(output, summed.prev.fcst$mean)
-    
-    # generate a forecast that is simply the previous editions data
-    
-    prev.edition <- align.previous.edition(isbn, time.series, title.data) # aligns data
-    
-    # take the window associated with the forecast
-    
-    prev.edition.2 <- window(prev.edition, 
-                      start= start(summed.prev.fcst$mean),
-                      end = end(summed.prev.fcst$mean),
-                      extend = F)
-
-    output <- cbind(output, prev.edition.2)
-    
-    }
-  
-  # print(output)
-  
-  # note that the date formatting needs to be fixed
-  # write.csv(file=paste(isbn, ".csv", sep = ""), x=as.data.frame(output))
-  write.zoo(output,file=paste(isbn, ".csv", sep = ""), index.name="Date",sep=",")
-}
 
 isbn = "1319056911"  # How Life Works
-output.multiple(isbn)
+output.multiple(isbn, time.series.data, title.data)
 
 # isbn2 = "0312132921"
 # output.multiple(isbn2)
