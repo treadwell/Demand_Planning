@@ -112,7 +112,7 @@ Usage:
 * It returns a single column dataframe of the forecast, indexed by the date of the forecast.
 * Examples:
 
-```{r}
+```{r n.month.forecast}
 
 isbn = "0716756676"  # set the ISBN (this can be changed)
 
@@ -140,7 +140,7 @@ Enhancements:
 
 Examples:
 
-```{r forecast, warning=FALSE, error=FALSE}
+```{r build.forecast.DF}
 
 # Get all of the time series and title data
 time.series.data = readRDS("time_series.rds")
@@ -216,19 +216,23 @@ align.previous.edition(isbn3, time.series.data, title.data)  # should fail
 
 forecast.zeros(ts, horizon)
 ---------------------------
-This function ttakes a time series and a horizon and returns a 0 forecast over that horizon.
+This function takes a time series and a horizon and returns a 0 forecast over that horizon.
+
+Usage:
+* Input: a time series
+* Output: a time-indexed data frame with zero values over the forecast period
 
 ```{r forecast.zeros}
-
+rm(list = ls())
 time.series.data = readRDS("time_series.rds")
 title.data = readRDS("title_data.rds")
 source("Inv_Planning.R")
 
 isbn1 = "1319056911"  # How Life Works
 ts = time.series.data[,isbn1] # get the time series for this title
-forecast.zeros(ts, 15)
+fcst = forecast.zeros(ts, 15)
+fcst
 
-# should this only be the point forecast?
 ```
 
 
@@ -245,7 +249,7 @@ Usage
 * The function returns a datafram of all relevant forecasts and saves a CSV file (isbn.csv), with the same information for inspection and usage
 
 
-```{r output.multiple, warning=FALSE, error=FALSE}
+```{r output.multiple}
 
 rm(list = ls())
 # Get all of the time series and title data
@@ -253,9 +257,24 @@ time.series.data = readRDS("time_series.rds")
 title.data = readRDS("title_data.rds")
 source("Inv_Planning.R")
 
-
 isbn = "1319056911"  # How Life Works
-output.multiple(isbn, time.series.data, title.data)
+horizon = 15
+
+# get a base forecast
+ts1 = time.series.data[, isbn]
+fcst1 = forecast(ts1, h=horizon)$mean
+fcst1.df = TS2DF(fcst1)
+fcst1.df
+
+
+  # How Life Works
+result = output.multiple(isbn, time.series.data, title.data)
+
+print(class(result))
+
+# 1. chack that each subforecast is generating a data frame in the appropriate format
+# 2. make sure that this returns a data frame with date indices
+# 3. make sure that forecasts are labeled correctly
 
 # isbn2 = "0312132921"
 # output.multiple(isbn2)

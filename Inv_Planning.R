@@ -244,8 +244,10 @@ forecast.zeros <- function(ts, horizon) {
   ts.temp = ts(rep(0,length(ts)), 
                start = start(ts), 
                frequency = frequency(ts))
-  ts.fcst = forecast(ts.temp, h=horizon)
-  return(ts.fcst)
+  ts.fcst = forecast(ts.temp, h=horizon)$mean
+  ts.fcst.df = TS2DF(ts.fcst)
+  colnames(ts.fcst.df) = "zeros"
+  return(ts.fcst.df)
 }
 
 output.multiple <- function(isbn, time.series.data, title.data){  # note that this should be a 2 param fn
@@ -262,18 +264,17 @@ output.multiple <- function(isbn, time.series.data, title.data){  # note that th
   if (num.contig > 6){  # if there's enough data, generate a forecast
     
     # base forecast
-    base.forecast = forecast(ts1, h=horizon)
+    base.forecast = TS2DF(forecast(ts1, h=horizon)$mean)
+    colnames(base.forecast) = "base"
     
   } else {   # if there's not enough data, generate a zero forecast
     
     # zeroes forecast
     base.forecast = forecast.zeros(ts1, horizon)
-    plot(base.forecast)
     
   }
-  
-  plot(base.forecast)
-  output <- base.forecast$mean
+
+  output <- base.forecast
   
   # If there's a previous edition, generate additional forecasts
   
@@ -282,9 +283,13 @@ output.multiple <- function(isbn, time.series.data, title.data){  # note that th
     # generate a forecast from current edition plus previous edition
     
     ts.summed <- sum.edition.data(isbn, time.series.data, title.data)
-    summed.prev.fcst = forecast(ts.summed, h = horizon)
-    plot(summed.prev.fcst)
-    output <- cbind(output, summed.prev.fcst$mean)
+    summed.prev.fcst = forecast(ts.summed, h = horizon)$mean
+    
+    print("Summed previous edition forecast complete")
+    summed.prev.fcst.df = TS2DF(summed.prev.fcst)
+    colnames(summed.prev.fcst.df) = "summed"
+    
+    output <- cbind(output, summed.prev.fcst.df)
     
     # generate a forecast that is simply the previous editions data
     
@@ -293,20 +298,28 @@ output.multiple <- function(isbn, time.series.data, title.data){  # note that th
     # take the window associated with the forecast
     
     prev.edition.2 <- window(prev.edition, 
-                             start= start(summed.prev.fcst$mean),
-                             end = end(summed.prev.fcst$mean),
+                             start= start(summed.prev.fcst),
+                             end = end(summed.prev.fcst),
                              extend = F)
     
-    output <- cbind(output, prev.edition.2)
+    
+    prev.edition.3 <- TS2DF(prev.edition.2)
+    colnames(prev.edition.3) <- "prev act"
+    
+    output <- cbind(output, prev.edition.3)
     
   }
-  
-  # print(output)
-  
-  # note that the date formatting needs to be fixed
-  # output should be a data frame
-  # write.csv(file=paste(isbn, ".csv", sep = ""), x=as.data.frame(output))
-  write.zoo(output,file=paste(isbn, ".csv", sep = ""), index.name="Date",sep=",")
+
+  write.csv(file=paste(isbn, ".csv", sep = ""), x=as.data.frame(output))
+  # write.zoo(output,file=paste(isbn, ".csv", sep = ""), index.name="Date",sep=",")
   
   return(output)
+}
+
+TS2DF <- function(time.series){
+  # converts a ts object to a dataframe with index matching dates
+  df = as.data.frame(time.series)
+  dates = as.Date(as.yearmon(time(time.series)))
+  rownames(df) = dates
+  return(df)
 }
