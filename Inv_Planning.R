@@ -323,3 +323,38 @@ TS2DF <- function(time.series){
   rownames(df) = dates
   return(df)
 }
+
+plot.two <- function(isbn1, isbn2, ts) {
+  # Plots two ISBNs in a facet plot, one over the other.  Takes 2 ISBNs as
+  # strings and a time series data frome as input and generates two plots.
+  plot.data <- ts[,c(isbn1, isbn2)]
+  plot.data <- zoo::na.trim(plot.data, sides = "left", is.na = "all")
+  plot(plot.data, main = "Comparative Time Series Plot", 
+       xlab = "Date",
+       ylab = "Units",
+       plot.type = "s", 
+       col = 1:2)
+  legend("topright", 
+         legend = c(isbn1, isbn2),
+         lty = c(1,1),
+         col = 1:2)
+}
+
+plot.previous.edition <- function(isbn, time.series.data, title.data){
+  # Takes an ISBN as a string and two data frames: title data and title
+  # time series as inputs and plots the time series and
+  # the previous edition.  If there is no previous edition, it returns 
+  # an NA.
+  
+  isbn.prev <- previous.edition.isbn(isbn, title.data) # Get previous edition
+  
+  # Fail if there's no previous edition (isbn.prev == NA)
+  if (is.na(isbn.prev)) {
+    return(NA)
+  }
+  
+  # Fail if previous edition has no data (not yet implemented)
+  
+  # Plot results
+  plot.two(isbn1, isbn.prev, time.series.data)
+}

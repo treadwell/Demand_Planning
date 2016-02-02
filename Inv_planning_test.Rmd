@@ -258,137 +258,76 @@ title.data = readRDS("title_data.rds")
 source("Inv_Planning.R")
 
 isbn = "1319056911"  # How Life Works
-horizon = 15
 
-# get a base forecast
-ts1 = time.series.data[, isbn]
-fcst1 = forecast(ts1, h=horizon)$mean
-fcst1.df = TS2DF(fcst1)
-fcst1.df
-
-
-  # How Life Works
 result = output.multiple(isbn, time.series.data, title.data)
+result
 
-print(class(result))
 
-# 1. chack that each subforecast is generating a data frame in the appropriate format
-# 2. make sure that this returns a data frame with date indices
-# 3. make sure that forecasts are labeled correctly
+isbn2 = "0312132921"
+output.multiple(isbn2, time.series.data, title.data)
 
-# isbn2 = "0312132921"
-# output.multiple(isbn2)
-# isbn3 <- "031243829X"
-# output.multiple(isbn3)
+isbn3 <- "031243829X"
+output.multiple(isbn3, time.series.data, title.data)
 
 ```
 
 
-Review Individual Titles
-------------------------
+plot.two(isbn1, isbn2, time.series.data)
+----------------------------------------
+Plots two ISBNs in a facet plot, one over the other.  
 
-```{r}
-
-time.series = readRDS("time_series.rds")
-title.data = readRDS("title_data.rds")
-
-title.data$Isbn
-
-isbn1 <- "0312132921"
-isbn2 <- "031241501X" # skewed title 1
-isbn3 <- "312566735" # skewed title 2
-isbn4 <- "145760647X" # skewed title 3
-
-skewed.isbns <- as.list(c(isbn2, isbn3, isbn4))
-ts1 = time.series[, isbn4]
-sum(!is.na(ts1))
-ts1.fcst = forecast(ts1, h = 15)
-plot(ts1.fcst)
-
-# test actions.
-str(ts1.fcst)
-ts1.fcst$method
-print(length(na.contiguous(ts1)))
-
-
-```
-
-Plot two time series on a single axis
--------------------------------------
+Usage:
+* Takes 2 ISBNs as strings and a time series data frome as input
+* Generates a plot of the two ISBNs on the same axis.
 
 ```{r plot.two}
 
+rm(list = ls())
+# Get all of the time series and title data
+time.series.data = readRDS("time_series.rds")
+title.data = readRDS("title_data.rds")
+source("Inv_Planning.R")
+
 isbn1 <- "031241501X"
 isbn2 <- "031243829X"
-time.series = readRDS("time_series.rds")
 
-plot.two <- function(isbn1, isbn2, ts) {
-  # Plots two ISBNs in a facet plot, one over the other.  Takes 2 ISBNs as
-  # strings and a time series data frome as input and generates two plots.
-  plot.data <- ts[,c(isbn1, isbn2)]
-  plot.data <- zoo::na.trim(plot.data, sides = "left", is.na = "all")
-  plot(plot.data, main = "Comparative Time Series Plot", 
-       xlab = "Date",
-       ylab = "Units",
-       plot.type = "s", 
-       col = 1:2)
-  legend("topright", 
-         legend = c(isbn1, isbn2),
-         lty = c(1,1),
-         col = 1:2)
-  }
-
-plot.two(isbn1, isbn2, time.series)
+plot.two(isbn1, isbn2, time.series.data)
 
 
 ```
 
-Plot title and previous edition (if any)
-----------------------------------------
+plot.previous.edition <- function(isbn, time.series.data, title.data)
+---------------------------------------------------------------------
+Plots a title and its previous edition as a time series on the same axis.
 
-```{r previous.edition}
+Usage:
+* Takes an ISBN as a string and two data frames: title data and title time series as inputs
+* Plots the time series and the previous edition.  If there is no previous edition, it returns an NA.
 
-time.series = readRDS("time_series.rds")
+
+```{r plot.previous.edition}
+
+rm(list = ls())
+# Get all of the time series and title data
+time.series.data = readRDS("time_series.rds")
 title.data = readRDS("title_data.rds")
+source("Inv_Planning.R")
 
 isbn1 = "1319056911"  # How Life Works
+plot.previous.edition(isbn1, time.series.data, title.data)
+
 isbn2 = "0312132921"
-isbn3 <- "031243829X"
-
-plot.previous.edition <- function(isbn, ts.data, title.data){
-  # Takes an ISBN as a string and two data frames: title data and title
-  # time series as inputs and plots the time series and
-  # the previous edition.  If there is no previous edition, it returns 
-  # an NA.
-  
-  isbn.prev <- previous.edition.isbn(isbn, title.data) # Get previous edition
-  
-  # Fail if there's no previous edition (isbn.prev == NA)
-  if (is.na(isbn.prev)) {
-    return(NA)
-    }
-  
-  # Fail if previous edition has no data (not yet implemented)
-  
-  # Plot results
-  plot.two(isbn1, isbn.prev, time.series)
-}
-
-# Test plot.previous.edition
-plot.previous.edition(isbn1, time.series, title.data)
-plot.previous.edition(isbn2, time.series, title.data)
+plot.previous.edition(isbn2, time.series.data, title.data)
 
 isbn3 <- "031243829X"
-plot.previous.edition(isbn3, time.series, title.data)
+plot.previous.edition(isbn3, time.series.data, title.data)
 
 ```
 
 
+Time series decomposition with STL (not implemented)
 
-
-Test decomposition with STL
-
-```{r}
+```{r stl}
 
 isbn = "1319056911"  # How Life Works
 isbn.fit = stl(isbn, s.window = "periodic")
@@ -401,7 +340,7 @@ Transplant model from previous edition
 * Add the previous edition to the current and forecast that
 * Decompose the previous edition and use the seasonal factors to forecast the current edition, based on current trend
 
-```{r test.transplant.forecast}
+```{r forecast.with.previous}
 
 # Make current edition and previous edition start with the same year.
 
