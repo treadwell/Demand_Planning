@@ -385,3 +385,19 @@ calc.review <- function(forecast, onhand){
   else if(forecast > onhand){"Print review"}
   else{"No Review"}
 }
+
+create.title.planning.worksheet <- function(title.data, title.forecasts){
+  
+  title.planning <- title.data %>% rowwise() %>% 
+    dplyr::mutate(Review = calc.review(title.forecasts$three, (Available + Reserved.Stock   + Sets.Made.Up))) %>% 
+    dplyr::arrange(Review) %>% 
+    mutate(OQ.6 = title.forecasts$six) %>% 
+    mutate(OQ.9 = title.forecasts$nine) %>% 
+    mutate(OQ.12 = title.forecasts$twelve) %>% 
+    mutate(OQ.15 = title.forecasts$fifteen)
+  
+  saveRDS(title.planning, "title_planning.rds")
+  write.csv(file="Title_Planning.csv", x=title.planning)
+  
+  return(title.planning)
+}

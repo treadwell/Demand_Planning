@@ -381,35 +381,24 @@ calc.review(10, 100) # no action
 
 ```
 
+create.title.planning.worksheet(title.data, title.forecasts)
+------------------------------------------------------------
+Creates a title planning worksheet based on forecasted demand. Recommends a reprint review if forecasted demand exceeds on hand inventory.
 
-Recommend titles to examine
----------------------------
+Usage:
+* Input is title data and title forecasts df
+* Output is a title planning worksheet that is also saved in CSV and RDS formats
 
-```{r}
-
-title.data = readRDS("title_data.rds")
+```{r create.title.planning.worksheet}
+rm(list = ls())
+# Get all of the time series and title data
 title.forecasts = readRDS("forecasts.rds")
+title.data = readRDS("title_data.rds")
+source("Inv_Planning.R")
 
-# add another column for whether a review is required
+title.planning = create.title.planning.worksheet(title.data, title.forecasts)
 
-calc.review <- function(forecast, onhand){
-  if(forecast == 0){"Insuff data"}
-  else if(forecast > onhand){"Print review"}
-  else{"No Review"}
-}
-
-title.planning <- title.data %>% rowwise() %>% 
-  dplyr::mutate(Review = calc.review(title.forecasts$three, (Available + Reserved.Stock + Sets.Made.Up))) %>% 
-  dplyr::arrange(Review) %>% 
-  mutate(OQ.6 = title.forecasts$six) %>% 
-  mutate(OQ.9 = title.forecasts$nine) %>% 
-  mutate(OQ.12 = title.forecasts$twelve) %>% 
-  mutate(OQ.15 = title.forecasts$fifteen)
-
-# output to csv
-
-saveRDS(title.planning, "title_planning.rds")
-write.csv(file="Title_Planning.csv", x=title.planning)
+head(title.planning)
 
 ```
 
