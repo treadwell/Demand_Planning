@@ -378,3 +378,10 @@ forecast.with.previous <- function(isbn, time.series.data, title.data, horizon =
   
   return(ts.fcst.df)
 }
+
+calc.review <- function(forecast, onhand){
+  # Determine if a title should be reviewed for a potential reprint
+  if(forecast == 0){"Insuff data"}
+  else if(forecast > onhand){"Print review"}
+  else{"No Review"}
+}

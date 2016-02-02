@@ -362,6 +362,26 @@ isbn3.fcst
 
 ```
 
+calc.review(forecast, onhand)
+-----------------------------
+Determine if a title should be reviewed for a reprint.
+
+Usage:
+* Input 2 numeric values: forecast demand and onhand inventory
+* Output string recommending what action to take
+
+```{r calc.review}
+
+rm(list = ls())
+source("Inv_Planning.R")
+
+calc.review(100, 10) # should recommend a review
+calc.review(0, 10) # insuffience information
+calc.review(10, 100) # no action
+
+```
+
+
 Recommend titles to examine
 ---------------------------
 
