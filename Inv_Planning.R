@@ -240,7 +240,7 @@ align.previous.edition <- function(isbn, ts.data, title.data){
 
 forecast.zeros <- function(ts, horizon) {
   # takes a time series and a horizon and returns 
-  # a 0 forecast over that horizon
+  # a 0 forecast over that horizon as a df
   ts.temp = ts(rep(0,length(ts)), 
                start = start(ts), 
                frequency = frequency(ts))
@@ -258,6 +258,8 @@ output.multiple <- function(isbn, time.series.data, title.data){  # note that th
   horizon = 15
   isbn.prev <- previous.edition.isbn(isbn, title.data) # Get previous edition
   ts1 = time.series.data[, isbn]
+  
+  ts1.fcst = forecast(ts1, horizon)$mean
   
   num.contig <- length(na.contiguous(ts1))  # how many contiguous values?
   
@@ -282,12 +284,7 @@ output.multiple <- function(isbn, time.series.data, title.data){  # note that th
     
     # generate a forecast from current edition plus previous edition
     
-    ts.summed <- sum.edition.data(isbn, time.series.data, title.data)
-    summed.prev.fcst = forecast(ts.summed, h = horizon)$mean
-    
-    print("Summed previous edition forecast complete")
-    summed.prev.fcst.df = TS2DF(summed.prev.fcst)
-    colnames(summed.prev.fcst.df) = "summed"
+    summed.prev.fcst.df = forecast.with.previous(isbn, time.series.data, title.data, horizon)
     
     output <- cbind(output, summed.prev.fcst.df)
     
@@ -298,8 +295,8 @@ output.multiple <- function(isbn, time.series.data, title.data){  # note that th
     # take the window associated with the forecast
     
     prev.edition.2 <- window(prev.edition, 
-                             start= start(summed.prev.fcst),
-                             end = end(summed.prev.fcst),
+                             start= start(ts1.fcst),
+                             end = end(ts1.fcst),
                              extend = F)
     
     
@@ -357,4 +354,27 @@ plot.previous.edition <- function(isbn, time.series.data, title.data){
   
   # Plot results
   plot.two(isbn1, isbn.prev, time.series.data)
+}
+
+forecast.with.previous <- function(isbn, time.series.data, title.data, horizon = 15){
+  # Takes an ISBN as a string and two data frames: title data and title
+  # time series as inputs and uses the model from the previous edition
+  # to forecast the new edition. Returns an NA if there's no previous
+  # edition.
+  
+  isbn.prev <- previous.edition.isbn(isbn, title.data) # Get previous edition
+  
+  # Fail if there's no previous edition (isbn.prev == NA)
+  if (is.na(isbn.prev)) {
+    ts = time.series.data[,isbn] # get the time series for this title
+    fcst = forecast.zeros(ts, horizon)
+    return(fcst)
+  }
+  
+  ts = sum.edition.data(isbn, time.series.data, title.data)
+  ts.fcst = forecast(ts, h=horizon)$mean
+  ts.fcst.df = TS2DF(ts.fcst) # convert to DF
+  colnames(ts.fcst.df) = "summed"
+  
+  return(ts.fcst.df)
 }

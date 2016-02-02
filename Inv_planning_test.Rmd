@@ -259,15 +259,17 @@ source("Inv_Planning.R")
 
 isbn = "1319056911"  # How Life Works
 
-result = output.multiple(isbn, time.series.data, title.data)
-result
+isbn.out = output.multiple(isbn, time.series.data, title.data)
+isbn.out
 
 
 isbn2 = "0312132921"
-output.multiple(isbn2, time.series.data, title.data)
+isbn2.out = output.multiple(isbn2, time.series.data, title.data)
+isbn2.out
 
 isbn3 <- "031243829X"
-output.multiple(isbn3, time.series.data, title.data)
+isbn3.out = output.multiple(isbn3, time.series.data, title.data)
+isbn3.out
 
 ```
 
@@ -335,64 +337,28 @@ plot(isbn.fit)
 
 ```
 
-Transplant model from previous edition
---------------------------------------
-* Add the previous edition to the current and forecast that
-* Decompose the previous edition and use the seasonal factors to forecast the current edition, based on current trend
+forecast.with.previous(isbn, time.series.data, title.data, horizon = 15)
+------------------------------------------------------------------------
+Generates a forecast by adding the previous edition demand to the current edition and forecasting the combination
+
+Usage
+* Takes an ISBN as a string and two data frames: title series data and title data as inputs
+* Returns a forecast in a data frame. If there is no previous edition, returns a zero forecast
 
 ```{r forecast.with.previous}
-
-# Make current edition and previous edition start with the same year.
-
-time.series = readRDS("time_series.rds")
+rm(list = ls())
+# Get all of the time series and title data
+time.series.data = readRDS("time_series.rds")
 title.data = readRDS("title_data.rds")
+source("Inv_Planning.R")
 
 isbn = "1319056911"  # How Life Works
-isbn2 = "0312132921"
-isbn3 <- "031243829X"
-
-forecast.with.previous <- function(isbn, ts.data, title.data){
-  # Takes an ISBN as a string and two data frames: title data and title
-  # time series as inputs and uses the model from the previous edition
-  # to forecast the new edition. Returns an NA if there's no previous
-  # edition.
-  
-  isbn.prev <- previous.edition.isbn(isbn, title.data) # Get previous edition
-  
-  # Fail if there's no previous edition (isbn.prev == NA)
-  if (is.na(isbn.prev)) {
-    return(NA)
-    }
-  # Fail if previous edition has no data (not yet implemented)
-  ts1 = time.series[, isbn]
-  ts1 <- zoo::na.trim(ts1, sides = "both", is.na = "all")
-  print(ts1)
-  ts1.fcst = forecast(ts1, h=15)
-  plot(ts1.fcst)
-  
-  ts2 = time.series[, isbn.prev]
-  ts2 <- zoo::na.trim(ts2, sides = "both", is.na = "all")
-  print(ts2)
-  ts2.fcst = forecast(ts2, h=15)
-  plot(ts2.fcst)
-  
-  temp = merge.zoo(ts1, ts2)
-  temp[is.na(temp)] <- 0
-  ts3 = temp[,1] + temp[,2]
-  ts3 = ts(ts3, start = start(ts3), frequency = 12)
-  ts3[ts3 < 0] <- 0
-  print(ts3)
-  ts3.fcst = forecast(ts3, h=15)
-  plot(ts3.fcst)
-
-}
-
-# Test plot.previous.edition
-forecast.with.previous(isbn1, time.series, title.data)
-# align.previous.edition(isbn2, time.series, title.data)
+isbn.fcst = forecast.with.previous(isbn, time.series.data, title.data, 15)
+isbn.fcst
 
 isbn3 <- "031243829X"
-forecast.with.previous(isbn3, time.series, title.data)  # should fail
+isbn3.fcst = forecast.with.previous(isbn3, time.series.data, title.data, 15)  # should return 0
+isbn3.fcst
 
 ```
 
