@@ -173,11 +173,12 @@ build.forecast.DF <- function(title.data, time.series.data){
 
   # Add cumulative forecast quantities. Note that titles are in rows!
   
-  title.forecasts <- title.forecasts %>% mutate(three = rowSums(.[1:3])) %>%
-    mutate(six = rowSums(.[1:6])) %>%
-    mutate(nine = rowSums(.[1:9])) %>%
-    mutate(twelve = rowSums(.[1:12])) %>%
-    mutate(fifteen = rowSums(.[1:15]))
+  title.forecasts <- title.forecasts %>% 
+    mutate(three = round(rowSums(.[1:3]))) %>%
+    mutate(six = round(rowSums(.[1:6]))) %>%
+    mutate(nine = round(rowSums(.[1:9]))) %>%
+    mutate(twelve = round(rowSums(.[1:12]))) %>%
+    mutate(fifteen = round(rowSums(.[1:15])))
   
   rownames(title.forecasts) <- isbns
   
@@ -391,6 +392,7 @@ create.title.planning.worksheet <- function(title.data, title.forecasts){
   title.planning <- title.data %>% rowwise() %>% 
     dplyr::mutate(Review = calc.review(title.forecasts$three, (Available + Reserved.Stock   + Sets.Made.Up))) %>% 
     dplyr::arrange(Review) %>% 
+    mutate(OQ.3 = title.forecasts$three) %>% 
     mutate(OQ.6 = title.forecasts$six) %>% 
     mutate(OQ.9 = title.forecasts$nine) %>% 
     mutate(OQ.12 = title.forecasts$twelve) %>% 

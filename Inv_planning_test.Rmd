@@ -1,8 +1,8 @@
 ---
-title: "Recommended Print List"
+title: "Demand and Inventory Planning Utilities"
 author: "Ken Brooks"
 date: "November 13, 2015"
-output: pdf_document
+output: html_document
 ---
 
 Prepare Environment
@@ -60,7 +60,7 @@ Usage:
 * It returns a data frame with correctly formatted columns for further processing.
 
 
-```{r format.data}
+```{r format_data}
 
 checkData(data)  # check that nothing has changed in input format
 data <- cleanImportedData(data)  # cleanup imported data
@@ -88,7 +88,7 @@ Usage:
 * The function takes the imported and cleaned data frame from cleanImportedData(data).
 * It returns a time.series.data data frame and saves time_series.rds to disk.
 
-```{r data.frames}
+```{r data_frames}
 
 # Retrieve stored data
 data = readRDS("data.rds")
@@ -112,7 +112,7 @@ Usage:
 * It returns a single column dataframe of the forecast, indexed by the date of the forecast.
 * Examples:
 
-```{r n.month.forecast}
+```{r n_month_forecast}
 
 isbn = "0716756676"  # set the ISBN (this can be changed)
 
@@ -140,11 +140,11 @@ Enhancements:
 
 Examples:
 
-```{r build.forecast.DF}
+```{r build_forecast_DF}
 
-# Get all of the time series and title data
 time.series.data = readRDS("time_series.rds")
 title.data = readRDS("title_data.rds")
+source("Inv_Planning.R")
 
 title.forecasts <- build.forecast.DF(title.data, time.series.data)
 
@@ -158,7 +158,7 @@ Usage:
 * Takes ISBN as a string, and a data frame as an input.
 * It returns the previous ISBN as a string, or NA if no previous ISBN is available.
 
-```{r previous.edition.isbn}
+```{r previous_edition_isbn}
 
 title.data = readRDS("title_data.rds")
 source("Inv_Planning.R")
@@ -179,7 +179,7 @@ Usage:
 * Takes an ISBN as a string and two data frames: title data and title time series as inputs
 * Returns a new time series with the summed values from that ISBN and its previous edition. If there is no previous edition, it returns the data from the first edition only.
 
-```{r sum.edition.data}
+```{r sum_edition_data}
 
 time.series.data = readRDS("time_series.rds")
 title.data = readRDS("title_data.rds")
@@ -222,7 +222,7 @@ Usage:
 * Input: a time series
 * Output: a time-indexed data frame with zero values over the forecast period
 
-```{r forecast.zeros}
+```{r forecast_zeros}
 rm(list = ls())
 time.series.data = readRDS("time_series.rds")
 title.data = readRDS("title_data.rds")
@@ -249,7 +249,7 @@ Usage
 * The function returns a datafram of all relevant forecasts and saves a CSV file (isbn.csv), with the same information for inspection and usage
 
 
-```{r output.multiple}
+```{r output_multiple}
 
 rm(list = ls())
 # Get all of the time series and title data
@@ -282,7 +282,7 @@ Usage:
 * Takes 2 ISBNs as strings and a time series data frome as input
 * Generates a plot of the two ISBNs on the same axis.
 
-```{r plot.two}
+```{r plot_two}
 
 rm(list = ls())
 # Get all of the time series and title data
@@ -307,7 +307,7 @@ Usage:
 * Plots the time series and the previous edition.  If there is no previous edition, it returns an NA.
 
 
-```{r plot.previous.edition}
+```{r plot_previous_edition}
 
 rm(list = ls())
 # Get all of the time series and title data
@@ -331,9 +331,9 @@ Time series decomposition with STL (not implemented)
 
 ```{r stl}
 
-isbn = "1319056911"  # How Life Works
-isbn.fit = stl(isbn, s.window = "periodic")
-plot(isbn.fit)
+# isbn = "1319056911"  # How Life Works
+# isbn.fit = stl(isbn, s.window = "periodic")
+# plot(isbn.fit)
 
 ```
 
@@ -345,7 +345,7 @@ Usage
 * Takes an ISBN as a string and two data frames: title series data and title data as inputs
 * Returns a forecast in a data frame. If there is no previous edition, returns a zero forecast
 
-```{r forecast.with.previous}
+```{r forecast_with_previous}
 rm(list = ls())
 # Get all of the time series and title data
 time.series.data = readRDS("time_series.rds")
@@ -370,7 +370,7 @@ Usage:
 * Input 2 numeric values: forecast demand and onhand inventory
 * Output string recommending what action to take
 
-```{r calc.review}
+```{r calc_review}
 
 rm(list = ls())
 source("Inv_Planning.R")
@@ -389,7 +389,7 @@ Usage:
 * Input is title data and title forecasts df
 * Output is a title planning worksheet that is also saved in CSV and RDS formats
 
-```{r create.title.planning.worksheet}
+```{r create_title_planning_worksheet}
 rm(list = ls())
 # Get all of the time series and title data
 title.forecasts = readRDS("forecasts.rds")
