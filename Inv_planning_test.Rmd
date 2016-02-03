@@ -1,9 +1,11 @@
 ---
-title: "Demand and Inventory Planning Utilities"
+title: "Demand and Inventory Planning Utilities v9"
 author: "Ken Brooks"
 date: "November 13, 2015"
 output: html_document
 ---
+
+The following document provides testing and initial documentation for each of the functions in Inv_Planning.R. The cells may be run in sequence, however, not all functions are required for all applications.
 
 Prepare Environment
 -------------------
@@ -417,3 +419,6 @@ v7
 v8
 * sum.previous.edition function created
 * output.multiple function created
+v9
+* bug fixes throughout
+* moved functions to Inv_Planning.R
